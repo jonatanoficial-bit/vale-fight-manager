@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+test-results/
+playwright-report/
+.cache/
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+*.p12
+*.dump
+work/
+outputs/

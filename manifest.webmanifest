@@ -1,0 +1,10 @@
+{
+  "name": "Vale Fight Manager — Parte 1",
+  "short_name": "Vale FM",
+  "description": "Vertical slice jogável de gestão de carreiras de boxe e MMA.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#07080b",
+  "theme_color": "#0a0b0e",
+  "icons": [{ "src": "assets/vale-fight-manager-logo.png", "sizes": "1080x1350", "type": "image/png", "purpose": "any" }]
+}
