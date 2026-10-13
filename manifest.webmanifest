@@ -1,7 +1,7 @@
 {
-  "name": "Vale Fight Manager — Parte 1",
+  "name": "Vale Fight Manager — Fases 1 e 2",
   "short_name": "Vale FM",
-  "description": "Vertical slice jogável de gestão de carreiras de boxe e MMA.",
+  "description": "Gestão de carreiras de boxe e MMA com ranking e calendário competitivo simulado.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#07080b",
