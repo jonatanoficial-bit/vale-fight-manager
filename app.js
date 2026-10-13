@@ -23,6 +23,32 @@
     misto: { id: 'moraes', name: 'Rafael Moraes', initials: 'RM', country: 'Brasil', discipline: 'MMA', division: 'Leve', age: 25, rating: 65, potential: 'B+', style: 'Striker completo', signing: 0, salary: 5900, record: '5-1-0', status: 'ativo', conditioning: 75, morale: 76, camp: 36 },
   };
 
+  const countries = {
+    'Alemanha': 'DE', 'Argentina': 'AR', 'Austrália': 'AU', 'Brasil': 'BR', 'Canadá': 'CA', 'Chile': 'CL', 'China': 'CN', 'Coreia do Sul': 'KR', 'Dinamarca': 'DK', 'Egito': 'EG', 'Espanha': 'ES', 'EUA': 'US', 'França': 'FR', 'Gana': 'GH', 'Holanda': 'NL', 'Índia': 'IN', 'Irlanda': 'IE', 'Israel': 'IL', 'Itália': 'IT', 'Japão': 'JP', 'Mali': 'ML', 'Marrocos': 'MA', 'México': 'MX', 'Nigéria': 'NG', 'Paquistão': 'PK', 'Polônia': 'PL', 'Portugal': 'PT', 'Reino Unido': 'GB', 'República Tcheca': 'CZ', 'Rússia': 'RU', 'Suécia': 'SE', 'Tunísia': 'TN',
+  };
+  const avatarProfiles = [
+    { skin: '#7f4f38', hair: '#17100e', shirt: '#bf2534', accent: '#f2bd62' },
+    { skin: '#d39368', hair: '#2d1b17', shirt: '#1d74bd', accent: '#8bd4ff' },
+    { skin: '#593a2a', hair: '#101114', shirt: '#af7a29', accent: '#ffe09a' },
+    { skin: '#e1ad85', hair: '#5a3320', shirt: '#4b8c70', accent: '#a5f0ca' },
+    { skin: '#9f6444', hair: '#3a2017', shirt: '#793cc1', accent: '#dcbdff' },
+    { skin: '#d7a080', hair: '#1a1515', shirt: '#c44955', accent: '#ffd2d8' },
+    { skin: '#71432f', hair: '#161213', shirt: '#278c91', accent: '#a9f3ed' },
+    { skin: '#c8845d', hair: '#46342f', shirt: '#a26a28', accent: '#ffe0a5' },
+  ];
+  const fightTactics = {
+    aggressive: { label: 'Pressão', icon: '✦', copy: 'Aumenta o dano e o risco.', offense: 1.28, guard: .82, stamina: 12, animation: 'strike' },
+    defensive: { label: 'Defesa', icon: '◈', copy: 'Protege a saúde e lê a luta.', offense: .72, guard: 1.42, stamina: 6, animation: 'guard' },
+    clinch: { label: 'Clinch', icon: '⊗', copy: 'Controle próximo e desgaste.', offense: 1.02, guard: 1.12, stamina: 9, animation: 'clinch' },
+    takedown: { label: 'Queda', icon: '↘', copy: 'Busca controle no solo.', offense: 1.16, guard: .96, stamina: 11, animation: 'takedown' },
+    counter: { label: 'Contra-golpe', icon: '↶', copy: 'Responde ao avanço rival.', offense: 1.12, guard: 1.18, stamina: 8, animation: 'counter' },
+    conserve: { label: 'Conservar', icon: 'ϟ', copy: 'Recupera energia e paciência.', offense: .55, guard: 1.25, stamina: -10, animation: 'recover' },
+  };
+
+  function createFightState() {
+    return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', result: null, seed: 94117 };
+  }
+
   const rankingCatalog = {
     mma: {
       leve: { label: 'Peso leve', promotion: 'Circuito Apex', champion: 'Dante Kwan', country: 'Coreia do Sul', record: '18-3-0', rows: [
@@ -57,7 +83,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -83,6 +109,7 @@
         { title: 'Taxas e licenças da academia', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' },
       ],
       world: createWorldState(),
+      fight: createFightState(),
     };
   }
 
@@ -90,8 +117,9 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 2 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 3 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
+        migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         return migrated;
       }
     } catch (error) { console.warn('Não foi possível recuperar o save local.', error); }
@@ -107,6 +135,24 @@
   }
   function escapeHTML(value) {
     return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+  }
+  function countryCode(country) { return countries[country] || 'UN'; }
+  function countryFlag(country) {
+    const code = countryCode(country);
+    const flag = code === 'UN' ? '🏳' : String.fromCodePoint(...[...code].map((letter) => 127397 + letter.charCodeAt(0)));
+    return `<span class="country-flag" role="img" aria-label="${escapeHTML(country)}">${flag}</span>`;
+  }
+  function avatarIndex(source) {
+    return [...String(source)].reduce((total, character) => total + character.charCodeAt(0), 0) % avatarProfiles.length;
+  }
+  function fighterAvatar(fighter, size = '') {
+    const profileIndex = avatarIndex(fighter.id || fighter.name);
+    const profile = avatarProfiles[profileIndex];
+    const initials = escapeHTML(fighter.initials || fighter.name.split(' ').map((part) => part[0]).slice(0, 2).join(''));
+    return `<span class="fighter-avatar avatar-v${profileIndex} ${size}" style="--skin:${profile.skin};--hair:${profile.hair};--shirt:${profile.shirt};--accent:${profile.accent}" role="img" aria-label="Avatar ilustrado de ${escapeHTML(fighter.name)}"><span class="avatar-halo"></span><span class="avatar-body"></span><span class="avatar-neck"></span><span class="avatar-face"><i></i><b></b></span><span class="avatar-hair"></span><span class="avatar-mark">${initials}</span></span>`;
+  }
+  function fighterIdentity(fighter, compact = false) {
+    return `${countryFlag(fighter.country)}${compact ? '' : ` ${escapeHTML(fighter.country)}`}`;
   }
   function selectedFighter() {
     return state.fighters.find((fighter) => fighter.id === state.selectedFighterId) || state.fighters[0] || null;
@@ -197,14 +243,23 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 2</strong>Carreira local · rankings simulados · calendário competitivo</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 3</strong>Carreira local · combate tático · retratos e bandeiras</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
+  function regionalOpponent(fighter) {
+    const mma = [{ id: 'maya-duarte', name: 'Maya Duarte', initials: 'MD', country: 'México', record: '4-1-0', rating: 64, discipline: 'MMA', division: fighter.division }, { id: 'noor-hassan', name: 'Noor Hassan', initials: 'NH', country: 'França', record: '5-2-0', rating: 66, discipline: 'MMA', division: fighter.division }];
+    const boxing = [{ id: 'iris-freitas', name: 'Iris Freitas', initials: 'IF', country: 'Portugal', record: '6-2-0', rating: 63, discipline: 'Boxe', division: fighter.division }, { id: 'amara-okoye', name: 'Amara Okoye', initials: 'AO', country: 'Nigéria', record: '5-1-0', rating: 65, discipline: 'Boxe', division: fighter.division }];
+    const pool = fighter.discipline === 'MMA' ? mma : boxing;
+    return { ...pool[avatarIndex(fighter.id) % pool.length] };
+  }
   function buildFightPanel() {
     const fighter = selectedFighter();
     if (!fighter) return `<aside class="next-fight"><div class="fight-head"><span>PRÓXIMO PASSO</span><span>RECRUTAMENTO</span></div><div class="section-body"><p class="text-muted">Sua academia precisa de um atleta para entrar no circuito.</p><button class="button" data-nav="roster">VER MERCADO</button></div></aside>`;
-    const opponent = fighter.discipline === 'MMA' ? { name: 'Maya Santos', initials: 'MS', record: '4-1-0' } : { name: 'Iris Freitas', initials: 'IF', record: '6-2-0' };
-    return `<aside class="next-fight"><div class="fight-head"><span>OPORTUNIDADE REGIONAL</span><span>${state.fightBooked ? 'CONFIRMADA' : 'PENDENTE'}</span></div><div class="fight-pair"><div class="fighter-token"><span class="portrait">${fighter.initials}</span><span>${escapeHTML(fighter.name.split(' ')[0])}</span><small>${fighter.record}</small></div><span class="versus">VS</span><div class="fighter-token"><span class="portrait">${opponent.initials}</span><span>${opponent.name.split(' ')[0]}</span><small>${opponent.record}</small></div></div><div class="fight-action">${state.fightBooked ? `<button class="button secondary" data-action="advance-week">PREPARAR CAMP</button>` : `<button class="button" data-action="book-fight">ACEITAR LUTA</button>`}</div></aside>`;
+    const fight = state.fight || createFightState();
+    const opponent = fight.opponent || regionalOpponent(fighter);
+    const stateLabel = fight.status === 'complete' ? 'RESULTADO DISPONÍVEL' : state.fightBooked ? (fight.status === 'ready' || fight.status === 'active' ? 'NOITE DE LUTA' : 'CAMP CONFIRMADO') : 'PENDENTE';
+    const action = fight.status === 'complete' ? `<button class="button secondary" data-action="open-fight">VER RESULTADO</button>` : state.fightBooked ? (fight.status === 'ready' || fight.status === 'active' ? `<button class="button" data-action="open-fight">ENTRAR NO EVENTO</button>` : `<button class="button secondary" data-action="advance-week">PREPARAR CAMP</button>`) : `<button class="button" data-action="book-fight">ACEITAR LUTA</button>`;
+    return `<aside class="next-fight"><div class="fight-head"><span>OPORTUNIDADE REGIONAL</span><span>${stateLabel}</span></div><div class="fight-pair"><div class="fighter-token">${fighterAvatar(fighter, 'portrait')}<span>${escapeHTML(fighter.name.split(' ')[0])}</span><small>${fighterIdentity(fighter, true)} ${fighter.record}</small></div><span class="versus">VS</span><div class="fighter-token">${fighterAvatar(opponent, 'portrait')}<span>${escapeHTML(opponent.name.split(' ')[0])}</span><small>${fighterIdentity(opponent, true)} ${opponent.record}</small></div></div><div class="fight-action">${action}</div></aside>`;
   }
   function homeView() {
     const fighter = selectedFighter();
@@ -218,13 +273,13 @@
     return roster.map((fighter) => {
       const signed = state.signedIds.includes(fighter.id) || state.fighters.some((owned) => owned.id === fighter.id);
       const selected = fighter.id === state.selectedFighterId;
-      return `<tr><td><div class="fighter-cell"><span class="mini-portrait">${fighter.initials}</span><div><strong>${escapeHTML(fighter.name)}</strong><small>${fighter.country} · ${fighter.age} anos</small></div></div></td><td>${fighter.discipline}<br><small class="text-muted">${fighter.division}</small></td><td class="rating">${fighter.rating}</td><td><span class="pill">${fighter.potential}</span></td><td>${escapeHTML(fighter.style)}</td><td>${signed ? `<button class="button secondary" data-action="select-fighter" data-id="${fighter.id}">${selected ? 'SELECIONADO' : 'GERIR'}</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">CONTRATAR</button>`}</td></tr>`;
+      return `<tr><td><div class="fighter-cell">${fighterAvatar(fighter, 'mini-portrait')}<div><strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.age} anos</small></div></div></td><td>${fighter.discipline}<br><small class="text-muted">${fighter.division}</small></td><td class="rating">${fighter.rating}</td><td><span class="pill">${fighter.potential}</span></td><td>${escapeHTML(fighter.style)}</td><td>${signed ? `<button class="button secondary" data-action="select-fighter" data-id="${fighter.id}">${selected ? 'SELECIONADO' : 'GERIR'}</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">CONTRATAR</button>`}</td></tr>`;
     }).join('');
   }
   function rosterView() {
     const fighter = selectedFighter() || prospects[0];
     const isOwned = state.fighters.some((owned) => owned.id === fighter.id);
-    return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Scouting & contratos</div><h1>Mercado de<br><span class="text-gold">talentos.</span></h1><p class="page-copy">O elenco não é decorativo. Cada contratação reduz o caixa, gera salário semanal e abre novas decisões de treinamento e luta.</p></div><button class="button secondary" data-action="advance-week">ATUALIZAR MERCADO</button></div><section class="roster-layout"><article class="card table-wrap"><div class="card-title"><span>Prospects e elenco</span><small>${state.fighters.length} atleta(s) contratado(s)</small></div><table class="fighter-table"><thead><tr><th>Lutador</th><th>Modalidade</th><th>OVR</th><th>Potencial</th><th>Estilo</th><th>Ação</th></tr></thead><tbody>${fighterRows()}</tbody></table></article><aside class="card profile-panel"><div class="profile-banner"><div class="eyebrow">${isOwned ? 'Sob gestão' : 'Prospect disponível'}</div><h2>${escapeHTML(fighter.name)}</h2><p>${fighter.country} · ${fighter.discipline} · ${fighter.division}</p></div><div class="profile-data"><div><span>OVR</span><strong>${fighter.rating}</strong></div><div><span>Potencial</span><strong>${fighter.potential}</strong></div><div><span>Cartel</span><strong>${fighter.record}</strong></div><div><span>Idade</span><strong>${fighter.age}</strong></div></div><div class="section-body"><p class="text-muted">${escapeHTML(fighter.style)}. ${isOwned ? 'Pronto para ser o rosto inicial da academia.' : `Bônus de assinatura: ${money(fighter.signing)} · salário semanal: ${money(fighter.salary)}.`}</p>${isOwned ? `<button class="button" data-action="select-fighter" data-id="${fighter.id}" data-nav-after="home">GERIR ATLETA</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">ENVIAR PROPOSTA</button>`}</div></aside></section></section>`;
+    return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Scouting & contratos</div><h1>Mercado de<br><span class="text-gold">talentos.</span></h1><p class="page-copy">O elenco não é decorativo. Cada contratação reduz o caixa, gera salário semanal e abre novas decisões de treinamento e luta.</p></div><button class="button secondary" data-action="advance-week">ATUALIZAR MERCADO</button></div><section class="roster-layout"><article class="card table-wrap"><div class="card-title"><span>Prospects e elenco</span><small>${state.fighters.length} atleta(s) contratado(s)</small></div><table class="fighter-table"><thead><tr><th>Lutador</th><th>Modalidade</th><th>OVR</th><th>Potencial</th><th>Estilo</th><th>Ação</th></tr></thead><tbody>${fighterRows()}</tbody></table></article><aside class="card profile-panel"><div class="profile-banner profile-banner-with-avatar">${fighterAvatar(fighter, 'profile-portrait')}<div><div class="eyebrow">${isOwned ? 'Sob gestão' : 'Prospect disponível'}</div><h2>${escapeHTML(fighter.name)}</h2><p>${fighterIdentity(fighter)} · ${fighter.discipline} · ${fighter.division}</p></div></div><div class="profile-data"><div><span>OVR</span><strong>${fighter.rating}</strong></div><div><span>Potencial</span><strong>${fighter.potential}</strong></div><div><span>Cartel</span><strong>${fighter.record}</strong></div><div><span>Idade</span><strong>${fighter.age}</strong></div></div><div class="section-body"><p class="text-muted">${escapeHTML(fighter.style)}. ${isOwned ? 'Pronto para ser o rosto inicial da academia.' : `Bônus de assinatura: ${money(fighter.signing)} · salário semanal: ${money(fighter.salary)}.`}</p>${isOwned ? `<button class="button" data-action="select-fighter" data-id="${fighter.id}" data-nav-after="home">GERIR ATLETA</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">ENVIAR PROPOSTA</button>`}</div></aside></section></section>`;
   }
   function academyView() {
     const ringCost = 70000 * state.academyLevel;
@@ -254,6 +309,33 @@
     const watched = state.world.events.find((event) => event.id === state.world.watchedEventId);
     return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Circuitos independentes · temporada ${state.week}</div><h1>Ranking não é<br><span class="text-gold">decoração.</span></h1><p class="page-copy">O mundo segue em movimento a cada semana. Vitórias, eventos e a pontuação do seu atleta definem a rota até a oportunidade de título.</p></div><button class="button" data-action="advance-week">SIMULAR SEMANA</button></div><section class="ranking-summary">${statCard('Sua posição', globalPlayer?.position ? `#${globalPlayer.position}` : 'NR', globalPlayer?.position ? `${globalPlayer.points} pontos ativos` : `${globalPlayer?.points || 0}/90 para entrar`, 'var(--gold-bright)')}${statCard('Mundo simulado', `${state.world.cycle}`, `${state.world.results.length} evento(s) resolvido(s)`, 'var(--blue)')}${statCard('Próximo limiar', globalPlayer?.position ? 'TOP 10' : 'RANK 15', globalPlayer?.position ? 'rankings mudam a cada semana' : 'vitória regional necessária', 'var(--white)')}</section><section class="rankings-layout"><article class="card rankings-card"><div class="card-title"><span>Ranking simulado do Vale</span><small>atualizado após eventos de mundo</small></div><div class="rankings-body">${rankingTabs()}<div class="champion-strip"><div><span class="eyebrow">Campeão — ${escapeHTML(group.promotion)}</span><strong>${escapeHTML(group.champion)}</strong><small>${escapeHTML(group.country)} · ${group.record}</small></div><span class="champion-crown">♛</span></div><div class="ranking-list"><div class="ranking-list-head"><span>#</span><span>Lutador</span><span>Cartel</span><span>Pontos</span><span>Mov.</span></div>${rows.map((row) => `<div class="ranking-row ${row.player ? 'player-row' : ''}"><strong>${row.position}</strong><div><b>${escapeHTML(row.name)}${row.player ? '<em>VOCÊ</em>' : ''}</b><small>${escapeHTML(row.country)}</small></div><span>${row.record}</span><strong>${row.score}</strong><span class="movement ${row.movement.startsWith('▲') ? 'up' : row.movement.startsWith('▼') ? 'down' : ''}">${row.movement}</span></div>`).join('')}</div></div></article><aside class="ranking-side"><article class="card path-card"><div class="card-title"><span>Rota do atleta</span><small>${player ? 'na divisão exibida' : 'foco atual'}</small></div><div class="section-body"><div class="path-number">${globalPlayer?.position ? `#${globalPlayer.position}` : 'NR'}</div><h2>${escapeHTML(route.title)}</h2><p class="${route.tone}">${escapeHTML(route.copy)}</p><div class="point-meter"><span style="width:${Math.min(100, ((globalPlayer?.points || 0) / (globalPlayer?.position ? 510 : 90)) * 100)}%"></span></div><div class="path-footer"><span>${globalPlayer?.points || 0} PONTOS</span><span>${globalPlayer?.position ? 'META: TOP 10' : 'META: 90 PONTOS'}</span></div></div></article><article class="card"><div class="card-title"><span>Calendário competitivo</span><small>${watched ? `monitorando ${watched.name}` : 'escolha um evento'}</small></div><div class="event-list">${state.world.events.map((event) => `<div class="event-row ${event.id === state.world.watchedEventId ? 'watched' : ''}"><div><strong>${escapeHTML(event.name)}</strong><small>${event.discipline} · ${event.date} · ${event.venue}</small><p>${escapeHTML(event.main)}</p></div><button class="button secondary" data-action="watch-event" data-id="${event.id}">${event.id === state.world.watchedEventId ? 'SEGUINDO' : 'SEGUIR'}</button></div>`).join('')}</div></article><article class="card"><div class="card-title"><span>Últimos resultados</span><small>mundo autônomo</small></div><div class="feed ranking-feed">${state.world.results.length ? state.world.results.map((result) => `<div class="feed-item"><strong>${escapeHTML(result.event)}</strong><br>${escapeHTML(result.winner)} venceu por ${escapeHTML(result.method)}.<small>Semana ${result.week}</small></div>`).join('') : '<div class="feed-item">O primeiro evento do mundo será resolvido ao avançar a semana.<small>Calendário ativo</small></div>'}</div></article></aside></section></section>`;
   }
+  function fightMeter(label, value, type) {
+    return `<div class="fight-meter ${type}"><span>${label}</span><div><i style="width:${Math.max(0, Math.min(100, value))}%"></i></div><strong>${Math.round(value)}%</strong></div>`;
+  }
+  function fightCombatant(fighter, side, health, stamina) {
+    return `<section class="combatant ${side}"><div class="combatant-name">${side === 'player' ? '<span class="corner-label">CANTO VALE</span>' : '<span class="corner-label">CANTO RIVAL</span>'}<strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div>${fighterAvatar(fighter, `fight-portrait ${side}`)}<div class="combatant-meters">${fightMeter('Saúde', health, 'health')}${fightMeter('Energia', stamina, 'stamina')}</div></section>`;
+  }
+  function fightStatusLabel(fight) {
+    if (fight.status === 'preparing') return `Camp em curso · evento na semana ${fight.readyWeek}`;
+    if (fight.status === 'ready') return 'Tudo pronto. A estratégia é sua.';
+    if (fight.status === 'active') return `Round ${fight.round} de ${fight.maxRounds} · troca ${Math.min(3, (fight.exchanges % 3) + 1)} de 3`;
+    if (fight.status === 'complete') return fight.result?.won ? 'Vitória registrada no histórico' : 'Resultado registrado no histórico';
+    return 'Nenhuma luta confirmada';
+  }
+  function fightView() {
+    const fighter = selectedFighter();
+    const fight = state.fight || createFightState();
+    if (!fighter) return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Fight Night</div><h1>Primeiro<br><span class="text-gold">contrato.</span></h1><p class="page-copy">Uma noite de luta precisa de um atleta sob gestão. Encontre um prospect para começar seu circuito.</p></div><button class="button" data-nav="roster">ABRIR MERCADO</button></div></section>`;
+    const opponent = fight.opponent || regionalOpponent(fighter);
+    const playerHealth = fight.playerHealth ?? 100;
+    const playerStamina = fight.playerStamina ?? 100;
+    const opponentHealth = fight.opponentHealth ?? 100;
+    const opponentStamina = fight.opponentStamina ?? 100;
+    const waiting = fight.status === 'preparing' && state.week < fight.readyWeek;
+    const idle = !state.fightBooked && fight.status !== 'complete';
+    const actionArea = idle ? `<div class="fight-callout"><strong>Convite regional aberto</strong><p>Assine o card para abrir a simulação tática de três rounds.</p><button class="button" data-action="book-fight">ACEITAR LUTA</button></div>` : waiting ? `<div class="fight-callout"><strong>Preparação necessária</strong><p>Faltam ${fight.readyWeek - state.week} semana(s) para a noite de luta. Treino e energia ainda podem ser ajustados.</p><button class="button" data-action="advance-week">AVANÇAR SEMANA</button></div>` : fight.status === 'ready' ? `<div class="fight-callout ready"><strong>Card confirmado</strong><p>Escolha uma tática a cada troca. Pressão oferece dano; defesa e energia aumentam a chance de sobreviver ao final.</p><button class="button" data-action="start-fight">INICIAR ROUND 1</button></div>` : fight.status === 'complete' ? `<div class="fight-result ${fight.result?.won ? 'won' : 'lost'}"><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(fighter.name)} ${fight.result?.won ? 'venceu' : 'foi superado(a)'} por ${escapeHTML(fight.result?.method || 'decisão')}</h2><p>${fight.result?.summary || 'O resultado foi aplicado no cartel, caixa, reputação e ranking.'}</p><div><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKING</button></div></div>` : `<div class="tactics-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="tactic-button ${fight.lastAction === tactic.animation ? 'last-action' : ''}" data-action="fight-tactic" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
+    return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">Vale Regional 01 · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Avatares são ilustrações autorais e bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
+  }
   function chartBars() {
     const incomes = [48, 56, 61, 55, 68, 73, 77, 84];
     const expenses = [22, 25, 29, 27, 34, 31, 38, 36];
@@ -279,6 +361,7 @@
     if (!state.complete) { app.innerHTML = onboarding(); bindEvents(); return; }
     let view = homeView();
     if (state.view === 'roster') view = rosterView();
+    if (state.view === 'fight') view = fightView();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
     if (state.view === 'finance') view = financeView();
@@ -343,8 +426,98 @@
   }
   function bookFight() {
     const fighter = selectedFighter(); if (!fighter) { toast('Você precisa de um atleta contratado para aceitar a luta.'); return; }
-    state.fightBooked = true; fighter.camp = Math.min(100, (fighter.camp || 20) + 5); addMessage(`${fighter.name} aceitou uma luta no Vale Regional 01. O camp é agora prioridade.`);
+    if (state.fightBooked && state.fight?.status !== 'complete') { state.view = 'fight'; persist(); render(); return; }
+    const opponent = regionalOpponent(fighter);
+    state.fightBooked = true;
+    state.fight = { ...createFightState(), status: 'preparing', readyWeek: state.week + 2, opponent, playerStamina: Math.min(100, (fighter.conditioning || 70) + 15) };
+    fighter.camp = Math.min(100, (fighter.camp || 20) + 5);
+    addMessage(`${fighter.name} aceitou enfrentar ${opponent.name} no Vale Regional 01. O camp é agora prioridade.`);
     persist(); render(); toast('Luta aceita. Prepare o atleta antes do evento.');
+  }
+  function nextFightRandom() {
+    const fight = state.fight;
+    fight.seed = (fight.seed * 1103515245 + 12345) >>> 0;
+    return fight.seed / 4294967296;
+  }
+  function opponentTactic(fight) {
+    const choices = ['aggressive', 'defensive', 'counter', 'clinch', 'takedown', 'conserve'];
+    return choices[Math.floor(nextFightRandom() * choices.length)];
+  }
+  function startFight() {
+    if (!state.fightBooked || state.fight.status !== 'ready') return;
+    state.fight.status = 'active';
+    state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: `${selectedFighter().name} entra no centro do espaço de luta. Escolha a primeira orientação do corner.` });
+    persist(); render(); toast('Round 1 iniciado. A decisão é sua.');
+  }
+  function tacticDamage(base, modifier, stamina, random) {
+    return Math.max(1, Math.round((base * modifier * (.76 + random * .52)) * (.65 + Math.max(0, stamina) / 285)));
+  }
+  function finishFight(won, method) {
+    const fight = state.fight;
+    const fighter = selectedFighter();
+    const reward = 62000 + state.reputation * 750;
+    fight.status = 'complete';
+    state.fightBooked = false;
+    fighter.conditioning = Math.max(46, Math.min(100, (fighter.conditioning || 70) - (won ? 13 : 19)));
+    fighter.camp = 14;
+    if (won) {
+      const previousRank = state.world.playerRanking.position;
+      fighter.record = incrementWin(fighter.record);
+      state.cash += reward; state.reputation += 7; state.fans += 340; state.world.playerRanking.points += 110;
+      const rank = refreshPlayerRanking();
+      addLedger(`Bolsa: ${fighter.name}`, 'Vale Regional 01', reward, 'income');
+      addMessage(`${fighter.name} venceu ${fight.opponent.name} por ${method}. A carreira recebeu +110 pontos de ranking.`);
+      if (!previousRank && rank?.position) addMessage(`${fighter.name} entrou no ranking simulado em #${rank.position} após a vitória no card regional.`);
+      fight.result = { won: true, method, summary: `Bolsa de ${money(reward)}, +7 reputação, +340 fãs e +110 pontos de ranking.` };
+      toast(`Vitória por ${method}! A carreira avançou.`);
+    } else {
+      fighter.record = incrementLoss(fighter.record);
+      state.reputation = Math.max(0, state.reputation - 2); state.fans = Math.max(0, state.fans - 45);
+      addLedger(`Bolsa de participação: ${fighter.name}`, 'Vale Regional 01', Math.round(reward * .28), 'income');
+      state.cash += Math.round(reward * .28);
+      addMessage(`${fighter.name} perdeu para ${fight.opponent.name} por ${method}. A equipe volta ao camp com dados para evoluir.`);
+      fight.result = { won: false, method, summary: `Bolsa de participação de ${money(Math.round(reward * .28))}; reputação -2 e aprendizado registrado para o próximo camp.` };
+      toast(`Resultado por ${method}. A trajetória continua.`);
+    }
+  }
+  function executeTactic(key) {
+    const fight = state.fight;
+    const fighter = selectedFighter();
+    if (!fighter || fight.status !== 'active' || !fightTactics[key]) return;
+    const tactic = fightTactics[key];
+    const rivalKey = opponentTactic(fight);
+    const rival = fightTactics[rivalKey];
+    const disciplineBonus = fighter.discipline === 'MMA' && (key === 'clinch' || key === 'takedown') ? 1.15 : fighter.discipline === 'Boxe' && (key === 'counter' || key === 'aggressive') ? 1.12 : 1;
+    const playerPower = (fighter.rating || 62) / 9;
+    const opponentPower = (fight.opponent.rating || 64) / 9;
+    let playerDamage = tacticDamage(playerPower, tactic.offense * disciplineBonus / rival.guard, fight.playerStamina, nextFightRandom());
+    let opponentDamage = tacticDamage(opponentPower, rival.offense / tactic.guard, fight.opponentStamina, nextFightRandom());
+    if (key === 'conserve') { fight.playerStamina = Math.min(100, fight.playerStamina + 14); playerDamage = Math.max(1, Math.round(playerDamage * .55)); }
+    if (rivalKey === 'conserve') { fight.opponentStamina = Math.min(100, fight.opponentStamina + 11); opponentDamage = Math.max(1, Math.round(opponentDamage * .55)); }
+    if (key === 'counter' && ['aggressive', 'takedown'].includes(rivalKey)) playerDamage += 4;
+    if (rivalKey === 'counter' && key === 'aggressive') opponentDamage += 4;
+    if (key === 'defensive') opponentDamage = Math.max(1, Math.round(opponentDamage * .72));
+    fight.playerStamina = Math.max(0, fight.playerStamina - tactic.stamina);
+    fight.opponentStamina = Math.max(0, fight.opponentStamina - rival.stamina);
+    fight.opponentHealth = Math.max(0, fight.opponentHealth - playerDamage);
+    fight.playerHealth = Math.max(0, fight.playerHealth - opponentDamage);
+    fight.momentum = Math.max(-100, Math.min(100, fight.momentum + playerDamage - opponentDamage));
+    fight.lastAction = tactic.animation;
+    fight.exchanges += 1;
+    const playerWonExchange = playerDamage >= opponentDamage;
+    const exchangeCopy = playerWonExchange ? `${fighter.name} usa ${tactic.label.toLowerCase()} e conecta melhor: ${playerDamage} de impacto. ${fight.opponent.name} responde com ${rival.label.toLowerCase()} (${opponentDamage}).` : `${fight.opponent.name} encontra espaço com ${rival.label.toLowerCase()} (${opponentDamage}). ${fighter.name} responde com ${tactic.label.toLowerCase()} (${playerDamage}).`;
+    fight.log.unshift({ round: fight.round, player: playerWonExchange, title: `${tactic.label} × ${rival.label}`, copy: exchangeCopy });
+    if (fight.opponentHealth <= 0 || fight.playerHealth <= 0) {
+      finishFight(fight.opponentHealth <= 0, 'nocaute técnico');
+    } else if (fight.exchanges >= fight.maxRounds * 3) {
+      const playerScore = fight.playerHealth + fight.playerStamina * .35 + fight.momentum * .25;
+      const opponentScore = fight.opponentHealth + fight.opponentStamina * .35 - fight.momentum * .25;
+      finishFight(playerScore >= opponentScore, 'decisão dos juízes');
+    } else if (fight.exchanges % 3 === 0) {
+      fight.round += 1;
+      fight.log.unshift({ round: fight.round, player: true, title: `Round ${fight.round} começa`, copy: fight.momentum > 8 ? 'O corner pede controle: a vantagem é sua, mas a energia importa.' : fight.momentum < -8 ? 'O corner pede resposta: escolha a próxima troca com cuidado.' : 'Cartões apertados. O próximo round pode definir o combate.' });
+    }
+    persist(); render();
   }
   function advanceWeek() {
     const payroll = state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800 + 4500;
@@ -352,17 +525,15 @@
     simulateWorldCycle();
     state.fighters.forEach((fighter) => { fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked ? 2 : -1))); fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1)); if (state.fightBooked) fighter.camp = Math.min(100, (fighter.camp || 20) + 7); });
     addLedger('Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
-    if (state.fightBooked && state.week % 3 === 0) {
-      const fighter = selectedFighter(); const reward = 48000 + state.reputation * 900; const previousRank = state.world.playerRanking.position; state.cash += reward; state.reputation += 5; state.fans += 260; fighter.record = incrementWin(fighter.record); fighter.camp = 15; fighter.conditioning = Math.max(55, fighter.conditioning - 12); state.fightBooked = false;
-      state.world.playerRanking.points += 95;
-      const updatedRank = refreshPlayerRanking();
-      addLedger(`Bolsa e bônus: ${fighter.name}`, 'Vale Regional 01', reward, 'income'); addMessage(`${fighter.name} venceu no Vale Regional 01. +95 pontos de ranking e reputação em alta.`);
-      if (!previousRank && updatedRank?.position) addMessage(`${fighter.name} entrou no ranking simulado em #${updatedRank.position}. Uma nova rota competitiva foi aberta.`);
-      toast(`Vitória no Vale Regional 01! +${money(reward)}, +5 reputação e +95 pontos.`);
+    if (state.fightBooked && state.fight.status === 'preparing' && state.week >= state.fight.readyWeek) {
+      state.fight.status = 'ready';
+      addMessage(`A preparação terminou. ${selectedFighter().name} está pronto(a) para enfrentar ${state.fight.opponent.name} no Vale Regional 01.`);
+      toast('Noite de luta liberada. Entre no evento para orientar o combate.');
     } else { addMessage(`Semana ${state.week} concluída. Folha e manutenção foram liquidadas.`); toast(`Semana ${state.week} avançada. Custos operacionais aplicados.`); }
     persist(); render();
   }
   function incrementWin(record) { const [wins, losses, draws] = record.split('-').map(Number); return `${wins + 1}-${losses}-${draws}`; }
+  function incrementLoss(record) { const [wins, losses, draws] = record.split('-').map(Number); return `${wins}-${losses + 1}-${draws}`; }
   function resetCareer() { localStorage.removeItem(STORAGE_KEY); state = makeSeed(); render(); toast('Save local removido. Uma nova carreira pode começar.'); }
   function bindEvents() {
     app.querySelectorAll('[data-nav]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.nav; persist(); render(); }));
@@ -379,6 +550,9 @@
       if (action === 'train') train();
       if (action === 'media') media();
       if (action === 'book-fight') bookFight();
+      if (action === 'open-fight') { state.view = 'fight'; persist(); render(); }
+      if (action === 'start-fight') startFight();
+      if (action === 'fight-tactic') executeTactic(button.dataset.tactic);
       if (action === 'watch-event') { state.world.watchedEventId = button.dataset.id; const event = state.world.events.find((entry) => entry.id === button.dataset.id); addMessage(`Você passou a monitorar ${event.name}. Os resultados aparecerão ao avançar a semana.`); persist(); render(); toast(`Agora acompanhando ${event.name}.`); }
       if (action === 'advance-week') advanceWeek();
       if (action === 'reset') openModal('Recomeçar carreira', '<p>Isso apagará o save local deste navegador. Esta ação não afeta o código do projeto nem o repositório.</p>', [{ id: 'cancel', label: 'Cancelar', className: 'secondary', onClick: () => {} }, { id: 'confirm', label: 'Apagar save', className: 'danger', onClick: resetCareer }]);
