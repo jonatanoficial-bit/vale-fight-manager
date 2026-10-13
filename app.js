@@ -1,4 +1,4 @@
-/* Vale Fight Manager — Parte 1
+/* Vale Fight Manager — Fases 1 a 4
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -36,6 +36,15 @@
     { skin: '#71432f', hair: '#161213', shirt: '#278c91', accent: '#a9f3ed' },
     { skin: '#c8845d', hair: '#46342f', shirt: '#a26a28', accent: '#ffe0a5' },
   ];
+  const fighterPortraits = {
+    mendes: 'assets/fighters/lucas-mendes.png',
+    silva: 'assets/fighters/thiago-silva.png',
+    carter: 'assets/fighters/jaden-carter.png',
+    adeleke: 'assets/fighters/khalil-adeleke.png',
+    viana: 'assets/fighters/diego-viana.png',
+    araujo: 'assets/fighters/nina-araujo.png',
+    moraes: 'assets/fighters/rafael-moraes.png',
+  };
   const fightTactics = {
     aggressive: { label: 'Pressão', icon: '✦', copy: 'Aumenta o dano e o risco.', offense: 1.28, guard: .82, stamina: 12, animation: 'strike' },
     defensive: { label: 'Defesa', icon: '◈', copy: 'Protege a saúde e lê a luta.', offense: .72, guard: 1.42, stamina: 6, animation: 'guard' },
@@ -47,6 +56,13 @@
 
   function createFightState() {
     return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', result: null, seed: 94117 };
+  }
+  function createNegotiationState() {
+    return { prospectId: null, status: 'idle', offer: null, seed: 371951, attempts: 0, result: null };
+  }
+  function contractFor(fighter, offer = {}) {
+    const duration = offer.duration || 2;
+    return { id: `contract-${fighter.id}-${Date.now()}-${Math.floor(Math.random() * 1000)}`, fighterId: fighter.id, fighterName: fighter.name, signing: offer.signing ?? fighter.signing ?? 0, salary: offer.salary ?? fighter.salary, duration, revenueShare: offer.revenueShare ?? 10, imageRights: offer.imageRights ?? 50, remainingWeeks: duration * 52, status: 'ativo' };
   }
 
   const rankingCatalog = {
@@ -83,7 +99,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -110,6 +126,9 @@
       ],
       world: createWorldState(),
       fight: createFightState(),
+      contracts: [],
+      contractHistory: [],
+      negotiation: createNegotiationState(),
     };
   }
 
@@ -117,9 +136,12 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 3 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 4 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
+        migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
+        migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
+        migrated.negotiation = parsed.negotiation ? { ...createNegotiationState(), ...parsed.negotiation } : createNegotiationState();
         return migrated;
       }
     } catch (error) { console.warn('Não foi possível recuperar o save local.', error); }
@@ -149,10 +171,49 @@
     const profileIndex = avatarIndex(fighter.id || fighter.name);
     const profile = avatarProfiles[profileIndex];
     const initials = escapeHTML(fighter.initials || fighter.name.split(' ').map((part) => part[0]).slice(0, 2).join(''));
-    return `<span class="fighter-avatar avatar-v${profileIndex} ${size}" style="--skin:${profile.skin};--hair:${profile.hair};--shirt:${profile.shirt};--accent:${profile.accent}" role="img" aria-label="Avatar ilustrado de ${escapeHTML(fighter.name)}"><span class="avatar-halo"></span><span class="avatar-body"></span><span class="avatar-neck"></span><span class="avatar-face"><i></i><b></b></span><span class="avatar-hair"></span><span class="avatar-mark">${initials}</span></span>`;
+    const portraitList = Object.values(fighterPortraits);
+    const portrait = fighterPortraits[fighter.id] || portraitList[profileIndex % portraitList.length];
+    return `<span class="fighter-avatar has-photo ${size}" style="--skin:${profile.skin};--hair:${profile.hair};--shirt:${profile.shirt};--accent:${profile.accent}" role="img" aria-label="Retrato cinematográfico de ${escapeHTML(fighter.name)}"><img src="${portrait}" alt="" loading="lazy"><span class="avatar-mark">${initials}</span></span>`;
   }
   function fighterIdentity(fighter, compact = false) {
     return `${countryFlag(fighter.country)}${compact ? '' : ` ${escapeHTML(fighter.country)}`}`;
+  }
+  function prospectById(id) { return prospects.find((fighter) => fighter.id === id); }
+  function offerFor(prospect) {
+    return { signing: prospect.signing, salary: prospect.salary, duration: 2, revenueShare: 10, imageRights: 50 };
+  }
+  function negotiationProspect() { return prospectById(state.negotiation?.prospectId); }
+  function negotiationScore(prospect, offer) {
+    if (!prospect || !offer) return 0;
+    const signing = Math.min(1.35, Math.max(.2, offer.signing / Math.max(1, prospect.signing)));
+    const salary = Math.min(1.35, Math.max(.2, offer.salary / Math.max(1, prospect.salary)));
+    const project = Math.min(1, (state.reputation + state.academyLevel * 7) / 70);
+    const schedule = state.fightBooked ? .62 : .92;
+    const rights = Math.min(1, offer.imageRights / 70);
+    const share = Math.min(1, offer.revenueShare / 18);
+    const temperament = 5 + avatarIndex(prospect.id) % 8;
+    return Math.round(Math.max(7, Math.min(92, 14 + signing * 15 + salary * 21 + project * 12 + schedule * 7 + rights * 7 + share * 6 + temperament)));
+  }
+  function negotiationRead(score) {
+    if (score >= 76) return { label: 'Muito favorável', tone: 'text-green', copy: 'Os termos superam a expectativa do atleta.' };
+    if (score >= 58) return { label: 'Proposta competitiva', tone: 'text-gold', copy: 'O agente considera a oferta séria, mas a decisão continua incerta.' };
+    if (score >= 40) return { label: 'Zona de risco', tone: 'text-red', copy: 'A proposta precisa de contrapartidas para convencer.' };
+    return { label: 'Baixa aderência', tone: 'text-red', copy: 'O pacote está distante das prioridades do atleta.' };
+  }
+  function negotiationFactors(prospect, offer) {
+    const score = negotiationScore(prospect, offer);
+    const rows = [
+      { label: 'Bônus de assinatura', value: offer.signing >= prospect.signing ? 'acima da referência' : 'abaixo da referência', good: offer.signing >= prospect.signing },
+      { label: 'Salário semanal', value: offer.salary >= prospect.salary ? 'mercado respeitado' : 'abaixo do mercado', good: offer.salary >= prospect.salary },
+      { label: 'Projeto da academia', value: `reputação ${state.reputation} · nível ${state.academyLevel}`, good: state.reputation + state.academyLevel * 7 >= 30 },
+      { label: 'Direitos de imagem', value: `${offer.imageRights}% para o atleta`, good: offer.imageRights >= 45 },
+      { label: 'Participação em receitas', value: `${offer.revenueShare}% do atleta`, good: offer.revenueShare >= 9 },
+    ];
+    return { score, rows };
+  }
+  function nextNegotiationRandom() {
+    state.negotiation.seed = (state.negotiation.seed * 1664525 + 1013904223) >>> 0;
+    return state.negotiation.seed / 4294967296;
   }
   function selectedFighter() {
     return state.fighters.find((fighter) => fighter.id === state.selectedFighterId) || state.fighters[0] || null;
@@ -243,7 +304,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 3</strong>Carreira local · combate tático · retratos e bandeiras</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('negotiation', '♢', 'Negociar')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 4</strong>Carreira local · contratos, propostas e decisões persistentes</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -273,7 +334,7 @@
     return roster.map((fighter) => {
       const signed = state.signedIds.includes(fighter.id) || state.fighters.some((owned) => owned.id === fighter.id);
       const selected = fighter.id === state.selectedFighterId;
-      return `<tr><td><div class="fighter-cell">${fighterAvatar(fighter, 'mini-portrait')}<div><strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.age} anos</small></div></div></td><td>${fighter.discipline}<br><small class="text-muted">${fighter.division}</small></td><td class="rating">${fighter.rating}</td><td><span class="pill">${fighter.potential}</span></td><td>${escapeHTML(fighter.style)}</td><td>${signed ? `<button class="button secondary" data-action="select-fighter" data-id="${fighter.id}">${selected ? 'SELECIONADO' : 'GERIR'}</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">CONTRATAR</button>`}</td></tr>`;
+      return `<tr><td><div class="fighter-cell">${fighterAvatar(fighter, 'mini-portrait')}<div><strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.age} anos</small></div></div></td><td>${fighter.discipline}<br><small class="text-muted">${fighter.division}</small></td><td class="rating">${fighter.rating}</td><td><span class="pill">${fighter.potential}</span></td><td>${escapeHTML(fighter.style)}</td><td>${signed ? `<button class="button secondary" data-action="select-fighter" data-id="${fighter.id}">${selected ? 'SELECIONADO' : 'GERIR'}</button>` : `<button class="button" data-action="hire" data-id="${fighter.id}">NEGOCIAR</button>`}</td></tr>`;
     }).join('');
   }
   function rosterView() {
@@ -334,7 +395,29 @@
     const waiting = fight.status === 'preparing' && state.week < fight.readyWeek;
     const idle = !state.fightBooked && fight.status !== 'complete';
     const actionArea = idle ? `<div class="fight-callout"><strong>Convite regional aberto</strong><p>Assine o card para abrir a simulação tática de três rounds.</p><button class="button" data-action="book-fight">ACEITAR LUTA</button></div>` : waiting ? `<div class="fight-callout"><strong>Preparação necessária</strong><p>Faltam ${fight.readyWeek - state.week} semana(s) para a noite de luta. Treino e energia ainda podem ser ajustados.</p><button class="button" data-action="advance-week">AVANÇAR SEMANA</button></div>` : fight.status === 'ready' ? `<div class="fight-callout ready"><strong>Card confirmado</strong><p>Escolha uma tática a cada troca. Pressão oferece dano; defesa e energia aumentam a chance de sobreviver ao final.</p><button class="button" data-action="start-fight">INICIAR ROUND 1</button></div>` : fight.status === 'complete' ? `<div class="fight-result ${fight.result?.won ? 'won' : 'lost'}"><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(fighter.name)} ${fight.result?.won ? 'venceu' : 'foi superado(a)'} por ${escapeHTML(fight.result?.method || 'decisão')}</h2><p>${fight.result?.summary || 'O resultado foi aplicado no cartel, caixa, reputação e ranking.'}</p><div><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKING</button></div></div>` : `<div class="tactics-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="tactic-button ${fight.lastAction === tactic.animation ? 'last-action' : ''}" data-action="fight-tactic" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
-    return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">Vale Regional 01 · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Avatares são ilustrações autorais e bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
+    return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">Vale Regional 01 · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Os retratos representam personagens fictícios e as bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
+  }
+  function contractStepper(label, field, value, step, prefix = '', suffix = '') {
+    return `<div class="contract-term"><div><strong>${label}</strong><small>${field === 'signing' ? 'pagamento único na assinatura' : field === 'salary' ? 'custo semanal recorrente' : field === 'duration' ? 'compromisso de longo prazo' : field === 'revenueShare' ? 'receita de bolsas e bônus' : 'porcentagem destinada ao atleta'}</small></div><div class="term-control"><button aria-label="Diminuir ${label}" data-action="adjust-offer" data-field="${field}" data-delta="-${step}">−</button><span>${prefix}${value}${suffix}</span><button aria-label="Aumentar ${label}" data-action="adjust-offer" data-field="${field}" data-delta="${step}">+</button></div></div>`;
+  }
+  function activeContractRows() {
+    if (!state.contracts.length) return '<div class="contract-empty">Nenhum contrato ativo. O mercado está aberto.</div>';
+    return state.contracts.map((contract) => {
+      const fighter = state.fighters.find((entry) => entry.id === contract.fighterId) || { id: contract.fighterId, name: contract.fighterName, initials: contract.fighterName.split(' ').map((part) => part[0]).join(''), country: 'Brasil' };
+      return `<div class="contract-row">${fighterAvatar(fighter, 'mini-portrait')}<div><strong>${escapeHTML(contract.fighterName)}</strong><small>${money(contract.salary)}/semana · ${Math.ceil((contract.remainingWeeks ?? contract.duration * 52) / 52)} temporada(s)</small></div><span class="pill">ATIVO</span></div>`;
+    }).join('');
+  }
+  function negotiationView() {
+    const available = prospects.filter((prospect) => !state.signedIds.includes(prospect.id));
+    const prospect = negotiationProspect();
+    const offer = state.negotiation.offer;
+    const canNegotiate = prospect && offer;
+    const analysis = canNegotiate ? negotiationFactors(prospect, offer) : { score: 0, rows: [] };
+    const read = negotiationRead(analysis.score);
+    const result = state.negotiation.result;
+    const selection = available.length ? `<div class="negotiation-prospect-list">${available.map((candidate) => `<button class="negotiation-prospect ${prospect?.id === candidate.id ? 'selected' : ''}" data-action="open-negotiation" data-id="${candidate.id}">${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.rating} OVR</small></span><b>${money(candidate.signing)}</b></button>`).join('')}</div>` : '<div class="contract-empty">Todos os prospects desta primeira janela já receberam contrato.</div>';
+    const builder = !canNegotiate ? `<div class="negotiation-placeholder"><span>♢</span><h2>Escolha um prospect</h2><p>Abra um dossiê para montar uma proposta com termos ajustáveis.</p></div>` : state.negotiation.status === 'accepted' ? `<div class="offer-outcome accepted"><span>CONTRATO ASSINADO</span><h2>${escapeHTML(prospect.name)} entrou no elenco.</h2><p>${escapeHTML(result || 'A proposta foi formalizada e a primeira semana de folha foi lançada no caixa.')}</p><div><button class="button" data-nav="roster">VER ELENCO</button><button class="button secondary" data-nav="finance">VER LIVRO-CAIXA</button></div></div>` : `<div class="offer-builder"><div class="deal-hero">${fighterAvatar(prospect, 'deal-portrait')}<div><div class="eyebrow">Dossiê do atleta</div><h2>${escapeHTML(prospect.name)}</h2><p>${fighterIdentity(prospect)} · ${prospect.age} anos · ${prospect.style}</p></div><div class="deal-rating"><span>OVR</span><strong>${prospect.rating}</strong><small>${prospect.potential} potencial</small></div></div><div class="contract-terms">${contractStepper('Bônus de assinatura', 'signing', money(offer.signing), 5000)}${contractStepper('Salário semanal', 'salary', money(offer.salary), 500)}${contractStepper('Duração', 'duration', offer.duration, 1, '', ' temporadas')}${contractStepper('Participação em receita', 'revenueShare', offer.revenueShare, 1, '', '%')}${contractStepper('Direitos de imagem', 'imageRights', offer.imageRights, 5, '', '% atleta')}</div><section class="offer-analysis"><div><span class="eyebrow">Leitura do agente</span><strong class="${read.tone}">${read.label}</strong><p>${read.copy}</p></div><div class="acceptance-gauge"><span style="width:${analysis.score}%"></span><b>${analysis.score}/100</b><small>indicador, não garantia</small></div></section><div class="factor-list">${analysis.rows.map((factor) => `<div class="factor ${factor.good ? 'positive' : 'negative'}"><span>${factor.good ? '✓' : '!'}</span><div><strong>${factor.label}</strong><small>${factor.value}</small></div></div>`).join('')}</div>${state.negotiation.status === 'rejected' ? `<div class="offer-outcome rejected"><strong>Oferta recusada</strong><p>${escapeHTML(result || 'O atleta pediu condições melhores.')}</p></div>` : ''}<div class="negotiation-actions"><button class="button secondary" data-action="reset-offer">RECALIBRAR</button><button class="button" data-action="submit-offer">ENVIAR PROPOSTA</button></div></div>`;
+    return `<section class="content negotiation-page"><div class="page-heading"><div><div class="eyebrow">Contratos & representação</div><h1>Valor se<br><span class="text-gold">negocia.</span></h1><p class="page-copy">Escolha o atleta, construa a oferta e aceite o risco. O agente mostra os fatores — a decisão só acontece quando a proposta é enviada.</p></div><button class="button secondary" data-nav="roster">VER MERCADO</button></div><section class="negotiation-layout"><aside class="card prospect-desk"><div class="card-title"><span>Janela de talentos</span><small>${available.length} disponível(is)</small></div>${selection}</aside><article class="card offer-card"><div class="card-title"><span>Proposta de representação</span><small>${canNegotiate ? `tentativa ${state.negotiation.attempts + 1}` : 'selecione um atleta'}</small></div><div class="offer-body">${builder}</div></article><aside class="negotiation-side"><article class="card"><div class="card-title"><span>Contratos ativos</span><small>${state.contracts.length} vínculo(s)</small></div><div class="contract-list">${activeContractRows()}</div></article><article class="card"><div class="card-title"><span>Histórico</span><small>decisões persistentes</small></div><div class="contract-history">${state.contractHistory.length ? state.contractHistory.slice(0, 5).map((entry) => `<div><strong>${escapeHTML(entry.fighter)}</strong><small>${escapeHTML(entry.status)} · S${entry.week}<br>${escapeHTML(entry.terms)}</small></div>`).join('') : '<div class="contract-empty">Propostas e assinaturas aparecerão aqui.</div>'}</div></article></aside></section><p class="negotiation-note">A resolução usa uma semente persistente e só é acionada ao enviar a proposta. Não há resultado novo ao reabrir esta tela.</p></section>`;
   }
   function chartBars() {
     const incomes = [48, 56, 61, 55, 68, 73, 77, 84];
@@ -361,6 +444,7 @@
     if (!state.complete) { app.innerHTML = onboarding(); bindEvents(); return; }
     let view = homeView();
     if (state.view === 'roster') view = rosterView();
+    if (state.view === 'negotiation') view = negotiationView();
     if (state.view === 'fight') view = fightView();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
@@ -383,24 +467,74 @@
     state.staff = profile.staff;
     state.fighters = [starter];
     state.selectedFighterId = starter.id;
+    state.contracts = [contractFor(starter, { signing: 0, salary: starter.salary, duration: 2, revenueShare: 12, imageRights: 55 })];
+    state.contractHistory = [{ fighter: starter.name, status: 'fundador', week: state.week, terms: `Contrato inicial · ${money(starter.salary)}/semana` }];
     state.ledger = [{ title: 'Capital de abertura', category: 'Início de carreira', amount: state.cash, week: 'S1', kind: 'income' }, { title: 'Licenças e abertura', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' }];
     state.cash -= 18000;
     state.complete = true;
     addMessage(`${starter.name} assinou como o primeiro atleta de ${state.draft.academyName}.`);
     persist(); render(); toast('Carreira criada. Seu primeiro atleta já está no elenco.');
   }
-  function hire(id) {
+  function beginNegotiation(id) {
+    const prospect = prospectById(id);
+    if (!prospect || state.signedIds.includes(id)) return;
+    state.negotiation = { ...createNegotiationState(), prospectId: id, offer: offerFor(prospect), seed: (state.world.seed + avatarIndex(id) * 9187 + state.week) >>> 0 };
+    state.view = 'negotiation';
+    persist(); render();
+  }
+  function hire(id, negotiatedOffer = null) {
     const prospect = prospects.find((candidate) => candidate.id === id);
     if (!prospect || state.signedIds.includes(id)) return;
-    const price = prospect.signing + prospect.salary;
+    if (!negotiatedOffer) { beginNegotiation(id); return; }
+    const price = negotiatedOffer.signing + negotiatedOffer.salary;
     if (state.cash < price) { toast('Caixa insuficiente para assinatura e primeira semana de salário.'); return; }
     state.cash -= price;
-    const fighter = { ...prospect, status: 'ativo', conditioning: 68, morale: 68, camp: 18 };
+    const fighter = { ...prospect, signing: negotiatedOffer.signing, salary: negotiatedOffer.salary, status: 'ativo', conditioning: 68, morale: 68, camp: 18 };
     state.fighters.push(fighter); state.signedIds.push(id); state.selectedFighterId = id;
-    addLedger(`Assinatura: ${prospect.name}`, 'Contrato de atleta', -prospect.signing, 'expense');
-    addLedger(`Salário inicial: ${prospect.name}`, 'Folha de pagamento', -prospect.salary, 'expense');
+    const contract = contractFor(fighter, negotiatedOffer);
+    state.contracts.push(contract);
+    state.contractHistory.unshift({ fighter: fighter.name, status: 'assinado', week: state.week, terms: `${money(negotiatedOffer.signing)} + ${money(negotiatedOffer.salary)}/semana` });
+    addLedger(`Assinatura: ${prospect.name}`, 'Contrato de atleta', -negotiatedOffer.signing, 'expense');
+    addLedger(`Salário inicial: ${prospect.name}`, 'Folha de pagamento', -negotiatedOffer.salary, 'expense');
     addMessage(`${prospect.name} aceitou a proposta. O atleta entrou no elenco.`);
+    state.negotiation = { ...state.negotiation, status: 'accepted', result: `${prospect.name} assinou por ${contract.duration} temporada(s).` };
     persist(); render(); toast(`${prospect.name} foi contratado e agora pode ser gerido.`);
+  }
+  function adjustOffer(field, delta) {
+    const prospect = negotiationProspect();
+    if (!prospect || !state.negotiation.offer) return;
+    const offer = state.negotiation.offer;
+    const bounds = { signing: [Math.max(0, Math.round(prospect.signing * .45)), Math.round(prospect.signing * 2.4)], salary: [Math.max(2500, Math.round(prospect.salary * .55)), Math.round(prospect.salary * 2.3)], duration: [1, 5], revenueShare: [0, 30], imageRights: [20, 80] };
+    const [min, max] = bounds[field] || [0, 100];
+    offer[field] = Math.max(min, Math.min(max, offer[field] + delta));
+    state.negotiation.status = 'draft'; state.negotiation.result = null;
+    persist(); render();
+  }
+  function resetOffer() {
+    const prospect = negotiationProspect();
+    if (!prospect) return;
+    state.negotiation.offer = offerFor(prospect);
+    state.negotiation.status = 'draft'; state.negotiation.result = null;
+    persist(); render();
+  }
+  function submitOffer() {
+    const prospect = negotiationProspect();
+    const offer = state.negotiation.offer;
+    if (!prospect || !offer || state.negotiation.status === 'accepted') return;
+    const cost = offer.signing + offer.salary;
+    if (state.cash < cost) { toast('Caixa insuficiente para cobrir assinatura e primeira semana de salário.'); return; }
+    const score = negotiationScore(prospect, offer);
+    const accepted = nextNegotiationRandom() * 100 < score;
+    state.negotiation.attempts += 1;
+    if (accepted) {
+      hire(prospect.id, offer);
+      return;
+    }
+    state.negotiation.status = 'rejected';
+    state.negotiation.result = `${prospect.name} recusou. O agente sinalizou que salário, bônus ou direitos podem ser revistos.`;
+    state.contractHistory.unshift({ fighter: prospect.name, status: 'recusado', week: state.week, terms: `proposta ${score}/100 · ${money(offer.salary)}/semana` });
+    addMessage(`${prospect.name} recusou a proposta de representação. A decisão foi registrada no histórico.`);
+    persist(); render(); toast('A proposta foi recusada. Ajuste os termos antes de tentar novamente.');
   }
   function upgrade(facility, cost) {
     if (state.cash < cost) { toast('Caixa insuficiente para este investimento.'); return; }
@@ -523,6 +657,7 @@
     const payroll = state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800 + 4500;
     state.cash -= payroll; state.week += 1; state.date = `Semana ${state.week} · 2026`;
     simulateWorldCycle();
+    state.contracts.forEach((contract) => { if (contract.status === 'ativo') contract.remainingWeeks = Math.max(0, (contract.remainingWeeks ?? contract.duration * 52) - 1); });
     state.fighters.forEach((fighter) => { fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked ? 2 : -1))); fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1)); if (state.fightBooked) fighter.camp = Math.min(100, (fighter.camp || 20) + 7); });
     addLedger('Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
     if (state.fightBooked && state.fight.status === 'preparing' && state.week >= state.fight.readyWeek) {
@@ -545,6 +680,10 @@
       if (action === 'onboarding-next') { setDraftFromInputs(); if (state.onboardingStep === 1 && (!state.draft.managerName || !state.draft.academyName)) { toast('Informe seu nome e o nome da academia.'); return; } state.onboardingStep += 1; persist(); render(); }
       if (action === 'onboarding-back') { setDraftFromInputs(); state.onboardingStep -= 1; persist(); render(); }
       if (action === 'hire') hire(button.dataset.id);
+      if (action === 'open-negotiation') beginNegotiation(button.dataset.id);
+      if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));
+      if (action === 'reset-offer') resetOffer();
+      if (action === 'submit-offer') submitOffer();
       if (action === 'select-fighter') { state.selectedFighterId = button.dataset.id; persist(); if (button.dataset.navAfter) state.view = button.dataset.navAfter; render(); }
       if (action === 'upgrade') upgrade(button.dataset.facility, Number(button.dataset.cost));
       if (action === 'train') train();
