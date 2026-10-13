@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 4
+# Vale Fight Manager — Fases 1 a 5
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -21,6 +21,10 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - arena octogonal fornecida no briefing integrada à tela de Fight Night;
 - mesa de contratos: proposta ajustável, leitura do agente, fatores de aceitação e resposta que só se resolve ao enviar a oferta;
 - contratos ativos, histórico, folha semanal e migração automática do save para a Fase 4.
+- centro de eventos VALE: escolha de arena, data, atleta principal e campanha de promoção;
+- reserva, marketing, card principal, preparação no calendário e transição direta para a Fight Night;
+- liquidação persistente de bilheteria, mídia, produção, público, fãs e reputação após a luta principal;
+- migração automática dos saves anteriores para a Fase 5.
 
 ## Como executar
 
@@ -42,7 +46,7 @@ O comando garante a presença dos artefatos essenciais da entrega. Os comportame
 
 ## Limites atuais
 
-Ainda não há animação 2D quadro a quadro, cloud save, áudio, patrocínios, renovação/rescisão avançadas ou entidades reais. A Fight Night é uma simulação tática por turnos; o ranking e os resultados são independentes e construídos apenas com conteúdo fictício.
+Ainda não há animação 2D quadro a quadro, cloud save, áudio, patrocínios, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação tática por turnos; o ranking e os resultados são independentes e construídos apenas com conteúdo fictício.
 
 ## Créditos de asset
 

@@ -60,6 +60,19 @@
   function createNegotiationState() {
     return { prospectId: null, status: 'idle', offer: null, seed: 371951, attempts: 0, result: null };
   }
+  function createEventPlannerState() {
+    return { venueId: 'vale-arena', promotionId: 'regional', dateOffset: 3, fighterId: null, activeEvent: null, history: [] };
+  }
+  const eventVenues = [
+    { id: 'vale-arena', name: 'Arena Vale', city: 'São Paulo', capacity: 4800, rental: 54000, production: 32000, ticket: 96, badge: 'CASA' },
+    { id: 'pavilhao-norte', name: 'Pavilhão Norte', city: 'Campinas', capacity: 7600, rental: 98000, production: 51000, ticket: 118, badge: 'REGIONAL' },
+    { id: 'domo-aurora', name: 'Domo Aurora', city: 'Rio de Janeiro', capacity: 11800, rental: 185000, production: 88000, ticket: 145, badge: 'PREMIUM' },
+  ];
+  const promotionPlans = [
+    { id: 'local', name: 'Circuito local', cost: 18000, audience: 320, media: 9000, copy: 'Rádio, mídia de bairro e base de fãs.' },
+    { id: 'regional', name: 'Campanha regional', cost: 46000, audience: 980, media: 29000, copy: 'Digital, imprensa esportiva e parceiros locais.' },
+    { id: 'broadcast', name: 'Noite transmitida', cost: 98000, audience: 2050, media: 82000, copy: 'Cobertura ampliada e pacote de transmissão fictício.' },
+  ];
   function contractFor(fighter, offer = {}) {
     const duration = offer.duration || 2;
     return { id: `contract-${fighter.id}-${Date.now()}-${Math.floor(Math.random() * 1000)}`, fighterId: fighter.id, fighterName: fighter.name, signing: offer.signing ?? fighter.signing ?? 0, salary: offer.salary ?? fighter.salary, duration, revenueShare: offer.revenueShare ?? 10, imageRights: offer.imageRights ?? 50, remainingWeeks: duration * 52, status: 'ativo' };
@@ -99,7 +112,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 4,
+      schemaVersion: 5,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -129,6 +142,7 @@
       contracts: [],
       contractHistory: [],
       negotiation: createNegotiationState(),
+      eventPlanner: createEventPlannerState(),
     };
   }
 
@@ -136,12 +150,13 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 4 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 5 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
         migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
         migrated.negotiation = parsed.negotiation ? { ...createNegotiationState(), ...parsed.negotiation } : createNegotiationState();
+        migrated.eventPlanner = parsed.eventPlanner ? { ...createEventPlannerState(), ...parsed.eventPlanner, history: Array.isArray(parsed.eventPlanner.history) ? parsed.eventPlanner.history : [] } : createEventPlannerState();
         return migrated;
       }
     } catch (error) { console.warn('Não foi possível recuperar o save local.', error); }
@@ -179,6 +194,31 @@
     return `${countryFlag(fighter.country)}${compact ? '' : ` ${escapeHTML(fighter.country)}`}`;
   }
   function prospectById(id) { return prospects.find((fighter) => fighter.id === id); }
+  function eventPlanner() { return state.eventPlanner || createEventPlannerState(); }
+  function selectedVenue() { return eventVenues.find((venue) => venue.id === eventPlanner().venueId) || eventVenues[0]; }
+  function selectedPromotion() { return promotionPlans.find((plan) => plan.id === eventPlanner().promotionId) || promotionPlans[1]; }
+  function eventFighter() {
+    const planner = eventPlanner();
+    return state.fighters.find((fighter) => fighter.id === planner.fighterId) || selectedFighter();
+  }
+  function eventEstimate(fighter = eventFighter(), venue = selectedVenue(), promotion = selectedPromotion()) {
+    if (!fighter) return { attendance: 0, gate: 0, media: 0, operating: venue.production, purse: 0, totalCost: venue.rental + promotion.cost + venue.production, projected: -(venue.rental + promotion.cost + venue.production) };
+    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience;
+    const attendance = Math.min(venue.capacity, Math.max(600, Math.round(interest)));
+    const gate = attendance * venue.ticket;
+    const media = promotion.media + Math.round(state.reputation * 330);
+    const purse = 26000 + fighter.rating * 440;
+    const operating = venue.production + Math.round(attendance * 7.5);
+    const totalCost = venue.rental + promotion.cost + operating;
+    return { attendance, gate, media, operating, purse, totalCost, projected: gate + media - totalCost + purse };
+  }
+  function eventStatusCopy(event) {
+    if (!event) return 'Configure seu primeiro card autoral.';
+    if (event.status === 'planned') return `Show confirmado para a Semana ${event.week}. A preparação está em curso.`;
+    if (event.status === 'ready') return 'Portões abertos. A luta principal está pronta para a Fight Night.';
+    if (event.status === 'live') return 'Evento ao vivo. A decisão do corner define o resultado.';
+    return `Evento concluído · ${event.attendance.toLocaleString('pt-BR')} pessoas na arena.`;
+  }
   function offerFor(prospect) {
     return { signing: prospect.signing, salary: prospect.salary, duration: 2, revenueShare: 10, imageRights: 50 };
   }
@@ -304,7 +344,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('negotiation', '♢', 'Negociar')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 4</strong>Carreira local · contratos, propostas e decisões persistentes</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 5</strong>Carreira local · eventos próprios, contratos e decisões persistentes</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -392,10 +432,12 @@
     const playerStamina = fight.playerStamina ?? 100;
     const opponentHealth = fight.opponentHealth ?? 100;
     const opponentStamina = fight.opponentStamina ?? 100;
+    const promotedEvent = state.eventPlanner?.activeEvent?.id === fight.eventId ? state.eventPlanner.activeEvent : null;
+    const showName = promotedEvent?.name || 'Vale Regional 01';
     const waiting = fight.status === 'preparing' && state.week < fight.readyWeek;
     const idle = !state.fightBooked && fight.status !== 'complete';
     const actionArea = idle ? `<div class="fight-callout"><strong>Convite regional aberto</strong><p>Assine o card para abrir a simulação tática de três rounds.</p><button class="button" data-action="book-fight">ACEITAR LUTA</button></div>` : waiting ? `<div class="fight-callout"><strong>Preparação necessária</strong><p>Faltam ${fight.readyWeek - state.week} semana(s) para a noite de luta. Treino e energia ainda podem ser ajustados.</p><button class="button" data-action="advance-week">AVANÇAR SEMANA</button></div>` : fight.status === 'ready' ? `<div class="fight-callout ready"><strong>Card confirmado</strong><p>Escolha uma tática a cada troca. Pressão oferece dano; defesa e energia aumentam a chance de sobreviver ao final.</p><button class="button" data-action="start-fight">INICIAR ROUND 1</button></div>` : fight.status === 'complete' ? `<div class="fight-result ${fight.result?.won ? 'won' : 'lost'}"><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(fighter.name)} ${fight.result?.won ? 'venceu' : 'foi superado(a)'} por ${escapeHTML(fight.result?.method || 'decisão')}</h2><p>${fight.result?.summary || 'O resultado foi aplicado no cartel, caixa, reputação e ranking.'}</p><div><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKING</button></div></div>` : `<div class="tactics-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="tactic-button ${fight.lastAction === tactic.animation ? 'last-action' : ''}" data-action="fight-tactic" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
-    return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">Vale Regional 01 · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Os retratos representam personagens fictícios e as bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
+    return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">${escapeHTML(showName)} · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Os retratos representam personagens fictícios e as bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
   }
   function contractStepper(label, field, value, step, prefix = '', suffix = '') {
     return `<div class="contract-term"><div><strong>${label}</strong><small>${field === 'signing' ? 'pagamento único na assinatura' : field === 'salary' ? 'custo semanal recorrente' : field === 'duration' ? 'compromisso de longo prazo' : field === 'revenueShare' ? 'receita de bolsas e bônus' : 'porcentagem destinada ao atleta'}</small></div><div class="term-control"><button aria-label="Diminuir ${label}" data-action="adjust-offer" data-field="${field}" data-delta="-${step}">−</button><span>${prefix}${value}${suffix}</span><button aria-label="Aumentar ${label}" data-action="adjust-offer" data-field="${field}" data-delta="${step}">+</button></div></div>`;
@@ -418,6 +460,21 @@
     const selection = available.length ? `<div class="negotiation-prospect-list">${available.map((candidate) => `<button class="negotiation-prospect ${prospect?.id === candidate.id ? 'selected' : ''}" data-action="open-negotiation" data-id="${candidate.id}">${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.rating} OVR</small></span><b>${money(candidate.signing)}</b></button>`).join('')}</div>` : '<div class="contract-empty">Todos os prospects desta primeira janela já receberam contrato.</div>';
     const builder = !canNegotiate ? `<div class="negotiation-placeholder"><span>♢</span><h2>Escolha um prospect</h2><p>Abra um dossiê para montar uma proposta com termos ajustáveis.</p></div>` : state.negotiation.status === 'accepted' ? `<div class="offer-outcome accepted"><span>CONTRATO ASSINADO</span><h2>${escapeHTML(prospect.name)} entrou no elenco.</h2><p>${escapeHTML(result || 'A proposta foi formalizada e a primeira semana de folha foi lançada no caixa.')}</p><div><button class="button" data-nav="roster">VER ELENCO</button><button class="button secondary" data-nav="finance">VER LIVRO-CAIXA</button></div></div>` : `<div class="offer-builder"><div class="deal-hero">${fighterAvatar(prospect, 'deal-portrait')}<div><div class="eyebrow">Dossiê do atleta</div><h2>${escapeHTML(prospect.name)}</h2><p>${fighterIdentity(prospect)} · ${prospect.age} anos · ${prospect.style}</p></div><div class="deal-rating"><span>OVR</span><strong>${prospect.rating}</strong><small>${prospect.potential} potencial</small></div></div><div class="contract-terms">${contractStepper('Bônus de assinatura', 'signing', money(offer.signing), 5000)}${contractStepper('Salário semanal', 'salary', money(offer.salary), 500)}${contractStepper('Duração', 'duration', offer.duration, 1, '', ' temporadas')}${contractStepper('Participação em receita', 'revenueShare', offer.revenueShare, 1, '', '%')}${contractStepper('Direitos de imagem', 'imageRights', offer.imageRights, 5, '', '% atleta')}</div><section class="offer-analysis"><div><span class="eyebrow">Leitura do agente</span><strong class="${read.tone}">${read.label}</strong><p>${read.copy}</p></div><div class="acceptance-gauge"><span style="width:${analysis.score}%"></span><b>${analysis.score}/100</b><small>indicador, não garantia</small></div></section><div class="factor-list">${analysis.rows.map((factor) => `<div class="factor ${factor.good ? 'positive' : 'negative'}"><span>${factor.good ? '✓' : '!'}</span><div><strong>${factor.label}</strong><small>${factor.value}</small></div></div>`).join('')}</div>${state.negotiation.status === 'rejected' ? `<div class="offer-outcome rejected"><strong>Oferta recusada</strong><p>${escapeHTML(result || 'O atleta pediu condições melhores.')}</p></div>` : ''}<div class="negotiation-actions"><button class="button secondary" data-action="reset-offer">RECALIBRAR</button><button class="button" data-action="submit-offer">ENVIAR PROPOSTA</button></div></div>`;
     return `<section class="content negotiation-page"><div class="page-heading"><div><div class="eyebrow">Contratos & representação</div><h1>Valor se<br><span class="text-gold">negocia.</span></h1><p class="page-copy">Escolha o atleta, construa a oferta e aceite o risco. O agente mostra os fatores — a decisão só acontece quando a proposta é enviada.</p></div><button class="button secondary" data-nav="roster">VER MERCADO</button></div><section class="negotiation-layout"><aside class="card prospect-desk"><div class="card-title"><span>Janela de talentos</span><small>${available.length} disponível(is)</small></div>${selection}</aside><article class="card offer-card"><div class="card-title"><span>Proposta de representação</span><small>${canNegotiate ? `tentativa ${state.negotiation.attempts + 1}` : 'selecione um atleta'}</small></div><div class="offer-body">${builder}</div></article><aside class="negotiation-side"><article class="card"><div class="card-title"><span>Contratos ativos</span><small>${state.contracts.length} vínculo(s)</small></div><div class="contract-list">${activeContractRows()}</div></article><article class="card"><div class="card-title"><span>Histórico</span><small>decisões persistentes</small></div><div class="contract-history">${state.contractHistory.length ? state.contractHistory.slice(0, 5).map((entry) => `<div><strong>${escapeHTML(entry.fighter)}</strong><small>${escapeHTML(entry.status)} · S${entry.week}<br>${escapeHTML(entry.terms)}</small></div>`).join('') : '<div class="contract-empty">Propostas e assinaturas aparecerão aqui.</div>'}</div></article></aside></section><p class="negotiation-note">A resolução usa uma semente persistente e só é acionada ao enviar a proposta. Não há resultado novo ao reabrir esta tela.</p></section>`;
+  }
+  function eventPlannerView() {
+    const planner = eventPlanner();
+    const active = planner.activeEvent;
+    const locked = active && active.status !== 'complete';
+    const fighter = eventFighter();
+    const venue = selectedVenue();
+    const promotion = selectedPromotion();
+    const estimate = eventEstimate(fighter, venue, promotion);
+    const opponent = fighter ? regionalOpponent(fighter) : null;
+    const commitCost = venue.rental + promotion.cost;
+    const fighterOptions = state.fighters.length ? `<div class="event-choice-row">${state.fighters.map((candidate) => `<button class="event-fighter-choice ${fighter?.id === candidate.id ? 'selected' : ''}" data-action="select-event-fighter" data-id="${candidate.id}" ${locked ? 'disabled' : ''}>${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.division}</small></span><b>${candidate.rating} OVR</b></button>`).join('')}</div>` : '<div class="event-empty">Assine um atleta antes de organizar um evento próprio.</div>';
+    const activePanel = active && active.status !== 'complete' ? `<article class="card event-command"><div class="event-command-top"><div><div class="eyebrow">Show em andamento</div><h2>${escapeHTML(active.name)}</h2><p>${escapeHTML(eventStatusCopy(active))}</p></div><span class="event-status ${active.status}">${active.status === 'ready' ? 'PORTÕES ABERTOS' : active.status === 'live' ? 'AO VIVO' : 'CONFIRMADO'}</span></div><div class="event-command-grid"><div><small>ARENA</small><strong>${escapeHTML(active.venueName)}</strong></div><div><small>DATA</small><strong>SEMANA ${active.week}</strong></div><div><small>MAIN EVENT</small><strong>${escapeHTML(active.fighterName)} × ${escapeHTML(active.opponent.name)}</strong></div></div><div class="event-command-actions">${active.status === 'ready' ? '<button class="button" data-action="open-event-fight">ENTRAR NA FIGHT NIGHT</button>' : '<button class="button secondary" data-action="advance-week">AVANÇAR SEMANA</button>'}<button class="button secondary" data-nav="finance">VER CAIXA</button></div></article>` : '';
+    const history = planner.history.length ? planner.history.slice(0, 3).map((event) => `<div class="event-history-row"><div><strong>${escapeHTML(event.name)}</strong><small>${escapeHTML(event.venueName)} · S${event.week} · ${event.attendance.toLocaleString('pt-BR')} presentes</small></div><strong class="${event.profit >= 0 ? 'text-green' : 'text-red'}">${event.profit >= 0 ? '+' : '−'}${money(Math.abs(event.profit))}</strong></div>`).join('') : '<div class="event-empty">Os resultados dos seus shows aparecerão aqui.</div>';
+    return `<section class="content event-page"><div class="page-heading"><div><div class="eyebrow">Produção de eventos · circuito autoral</div><h1>Construa o<br><span class="text-gold">seu show.</span></h1><p class="page-copy">Reserve a arena, escolha a campanha, escale a luta principal e assuma o risco operacional. O resultado entra no caixa somente depois da Fight Night.</p></div><button class="button secondary" data-nav="fight">FIGHT NIGHT</button></div>${activePanel}<section class="event-layout ${locked ? 'is-locked' : ''}"><article class="card event-builder"><div class="card-title"><span>1 · Arena & data</span><small>${locked ? 'produção travada até o show' : 'monte o evento'}</small></div><div class="event-arena-visual"><div><div class="eyebrow">VALE EVENTS</div><h2>${escapeHTML(venue.name)}</h2><p>${escapeHTML(venue.city)} · ${venue.capacity.toLocaleString('pt-BR')} lugares</p></div><span>${venue.badge}</span></div><div class="event-body"><div class="event-section-label">Escolha a praça</div><div class="venue-grid">${eventVenues.map((option) => `<button class="venue-choice ${venue.id === option.id ? 'selected' : ''}" data-action="select-event-venue" data-id="${option.id}" ${locked ? 'disabled' : ''}><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.city)} · ${option.capacity.toLocaleString('pt-BR')} pessoas</small><b>${money(option.rental)}</b></button>`).join('')}</div><div class="event-section-label">Janela de realização</div><div class="date-choice-row">${[2, 3, 4, 5].map((offset) => `<button class="date-choice ${planner.dateOffset === offset ? 'selected' : ''}" data-action="select-event-date" data-offset="${offset}" ${locked ? 'disabled' : ''}><strong>S${state.week + offset}</strong><small>em ${offset} semanas</small></button>`).join('')}</div></div></article><article class="card event-builder"><div class="card-title"><span>2 · Card & promoção</span><small>luta principal jogável</small></div><div class="event-body"><div class="event-section-label">Atleta da luta principal</div>${fighterOptions}<div class="event-section-label">Campanha</div><div class="promotion-grid">${promotionPlans.map((option) => `<button class="promotion-choice ${promotion.id === option.id ? 'selected' : ''}" data-action="select-event-promotion" data-id="${option.id}" ${locked ? 'disabled' : ''}><span>${option.id === 'broadcast' ? '◉' : option.id === 'regional' ? '◈' : '◇'}</span><div><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.copy)}</small></div><b>${money(option.cost)}</b></button>`).join('')}</div><div class="main-event-card">${fighter && opponent ? `<div>${fighterAvatar(fighter, 'portrait')}<strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div><b>VS</b><div>${fighterAvatar(opponent, 'portrait')}<strong>${escapeHTML(opponent.name)}</strong><small>${fighterIdentity(opponent)} · ${opponent.record}</small></div>` : '<span>Selecione um atleta para visualizar a luta principal.</span>'}</div></div></article><aside class="event-sidebar"><article class="card event-projection"><div class="card-title"><span>3 · Projeção</span><small>estimativa transparente</small></div><div class="event-projection-grid"><div><small>PÚBLICO</small><strong>${estimate.attendance.toLocaleString('pt-BR')}</strong><span>de ${venue.capacity.toLocaleString('pt-BR')}</span></div><div><small>BILHETERIA</small><strong>${money(estimate.gate)}</strong><span>${money(venue.ticket)} por ingresso</span></div><div><small>MÍDIA</small><strong>${money(estimate.media)}</strong><span>pacote estimado</span></div><div><small>OPERAÇÃO</small><strong class="text-red">${money(estimate.operating)}</strong><span>produção no dia</span></div></div><div class="event-profit"><span>Resultado estimado</span><strong class="${estimate.projected >= 0 ? 'text-green' : 'text-red'}">${estimate.projected >= 0 ? '+' : '−'}${money(Math.abs(estimate.projected))}</strong><small>inclui a bolsa projetada da luta principal</small></div><button class="button ${fighter && !locked ? '' : 'secondary'}" data-action="plan-event" ${!fighter || locked ? 'disabled' : ''}>CONFIRMAR · ${money(commitCost)}</button><p class="event-disclaimer">A reserva e o marketing são cobrados agora. Bilheteria, mídia e produção são liquidadas após o combate.</p></article><article class="card event-history"><div class="card-title"><span>Shows concluídos</span><small>${planner.history.length} registro(s)</small></div>${history}</article></aside></section></section>`;
   }
   function chartBars() {
     const incomes = [48, 56, 61, 55, 68, 73, 77, 84];
@@ -445,6 +502,7 @@
     let view = homeView();
     if (state.view === 'roster') view = rosterView();
     if (state.view === 'negotiation') view = negotiationView();
+    if (state.view === 'events') view = eventPlannerView();
     if (state.view === 'fight') view = fightView();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
@@ -469,6 +527,7 @@
     state.selectedFighterId = starter.id;
     state.contracts = [contractFor(starter, { signing: 0, salary: starter.salary, duration: 2, revenueShare: 12, imageRights: 55 })];
     state.contractHistory = [{ fighter: starter.name, status: 'fundador', week: state.week, terms: `Contrato inicial · ${money(starter.salary)}/semana` }];
+    state.eventPlanner = { ...createEventPlannerState(), fighterId: starter.id };
     state.ledger = [{ title: 'Capital de abertura', category: 'Início de carreira', amount: state.cash, week: 'S1', kind: 'income' }, { title: 'Licenças e abertura', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' }];
     state.cash -= 18000;
     state.complete = true;
@@ -536,6 +595,86 @@
     addMessage(`${prospect.name} recusou a proposta de representação. A decisão foi registrada no histórico.`);
     persist(); render(); toast('A proposta foi recusada. Ajuste os termos antes de tentar novamente.');
   }
+  function selectEventVenue(id) {
+    if (!eventVenues.some((venue) => venue.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.venueId = id;
+    persist(); render();
+  }
+  function selectEventPromotion(id) {
+    if (!promotionPlans.some((plan) => plan.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.promotionId = id;
+    persist(); render();
+  }
+  function selectEventDate(offset) {
+    if (![2, 3, 4, 5].includes(offset) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.dateOffset = offset;
+    persist(); render();
+  }
+  function selectEventFighter(id) {
+    if (!state.fighters.some((fighter) => fighter.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.fighterId = id;
+    state.selectedFighterId = id;
+    persist(); render();
+  }
+  function planEvent() {
+    const planner = eventPlanner();
+    if (planner.activeEvent && ['planned', 'ready', 'live'].includes(planner.activeEvent.status)) { toast('Já existe um show em produção. Conclua-o antes de montar outro card.'); return; }
+    if (state.fightBooked && state.fight.status !== 'complete') { toast('Finalize a luta já agendada antes de promover um novo show.'); return; }
+    const fighter = eventFighter();
+    if (!fighter) { toast('Você precisa de um atleta ativo para confirmar uma luta principal.'); return; }
+    const venue = selectedVenue();
+    const promotion = selectedPromotion();
+    const reservation = venue.rental + promotion.cost;
+    if (state.cash < reservation) { toast('Caixa insuficiente para reservar a arena e ativar a campanha.'); return; }
+    const estimate = eventEstimate(fighter, venue, promotion);
+    const opponent = regionalOpponent(fighter);
+    const sequence = planner.history.length + 1;
+    const event = {
+      id: `vale-show-${state.week}-${sequence}`,
+      name: `VALE FIGHT NIGHT ${String(sequence).padStart(2, '0')}`,
+      status: 'planned',
+      week: state.week + planner.dateOffset,
+      venueId: venue.id,
+      venueName: venue.name,
+      city: venue.city,
+      capacity: venue.capacity,
+      promotionId: promotion.id,
+      promotionName: promotion.name,
+      fighterId: fighter.id,
+      fighterName: fighter.name,
+      opponent,
+      attendance: estimate.attendance,
+      gate: estimate.gate,
+      media: estimate.media,
+      operating: estimate.operating,
+      purse: estimate.purse,
+      reservation,
+      undercard: promotion.id === 'broadcast' ? 5 : promotion.id === 'regional' ? 4 : 3,
+    };
+    state.cash -= reservation;
+    state.selectedFighterId = fighter.id;
+    state.eventPlanner.activeEvent = event;
+    addLedger(`Reserva: ${event.name}`, `Arena · ${venue.name}`, -venue.rental, 'expense');
+    addLedger(`Campanha: ${promotion.name}`, 'Promoção de evento', -promotion.cost, 'expense');
+    addMessage(`${event.name} foi confirmado na ${venue.name} para a Semana ${event.week}. ${fighter.name} fará a luta principal contra ${opponent.name}.`);
+    persist(); render(); toast('Show confirmado. Custos de reserva e campanha foram aplicados.');
+  }
+  function settlePromotedEvent(event, won) {
+    if (!event || event.status === 'complete') return;
+    const profit = event.gate + event.media - event.operating;
+    state.cash += event.gate + event.media - event.operating;
+    state.fans += Math.round(event.attendance * .08) + (won ? 180 : 70);
+    state.reputation += won ? 4 : 1;
+    event.status = 'complete';
+    event.profit = profit;
+    event.result = won ? 'luta principal vencida' : 'luta principal perdida';
+    state.eventPlanner.history.unshift({ ...event });
+    state.eventPlanner.history = state.eventPlanner.history.slice(0, 6);
+    addLedger(`Bilheteria: ${event.name}`, `${event.attendance.toLocaleString('pt-BR')} presentes`, event.gate, 'income');
+    addLedger(`Mídia: ${event.promotionName}`, 'Direitos locais simulados', event.media, 'income');
+    addLedger(`Produção: ${event.name}`, 'Equipe, arbitragem e operação', -event.operating, 'expense');
+    addMessage(`${event.name} encerrou com ${event.attendance.toLocaleString('pt-BR')} presentes e ${profit >= 0 ? 'resultado positivo' : 'resultado negativo'} de ${money(Math.abs(profit))}.`);
+  }
   function upgrade(facility, cost) {
     if (state.cash < cost) { toast('Caixa insuficiente para este investimento.'); return; }
     state.cash -= cost; state.facilities[facility] += 1; state.academyLevel = Math.max(state.academyLevel, state.facilities[facility]);
@@ -579,6 +718,8 @@
   }
   function startFight() {
     if (!state.fightBooked || state.fight.status !== 'ready') return;
+    const event = state.eventPlanner?.activeEvent;
+    if (event?.id === state.fight.eventId) event.status = 'live';
     state.fight.status = 'active';
     state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: `${selectedFighter().name} entra no centro do espaço de luta. Escolha a primeira orientação do corner.` });
     persist(); render(); toast('Round 1 iniciado. A decisão é sua.');
@@ -589,7 +730,9 @@
   function finishFight(won, method) {
     const fight = state.fight;
     const fighter = selectedFighter();
-    const reward = 62000 + state.reputation * 750;
+    const promotedEvent = state.eventPlanner?.activeEvent?.id === fight.eventId ? state.eventPlanner.activeEvent : null;
+    const eventLabel = promotedEvent ? promotedEvent.name : 'Vale Regional 01';
+    const reward = promotedEvent ? promotedEvent.purse : 62000 + state.reputation * 750;
     fight.status = 'complete';
     state.fightBooked = false;
     fighter.conditioning = Math.max(46, Math.min(100, (fighter.conditioning || 70) - (won ? 13 : 19)));
@@ -599,7 +742,7 @@
       fighter.record = incrementWin(fighter.record);
       state.cash += reward; state.reputation += 7; state.fans += 340; state.world.playerRanking.points += 110;
       const rank = refreshPlayerRanking();
-      addLedger(`Bolsa: ${fighter.name}`, 'Vale Regional 01', reward, 'income');
+      addLedger(`Bolsa: ${fighter.name}`, eventLabel, reward, 'income');
       addMessage(`${fighter.name} venceu ${fight.opponent.name} por ${method}. A carreira recebeu +110 pontos de ranking.`);
       if (!previousRank && rank?.position) addMessage(`${fighter.name} entrou no ranking simulado em #${rank.position} após a vitória no card regional.`);
       fight.result = { won: true, method, summary: `Bolsa de ${money(reward)}, +7 reputação, +340 fãs e +110 pontos de ranking.` };
@@ -607,11 +750,15 @@
     } else {
       fighter.record = incrementLoss(fighter.record);
       state.reputation = Math.max(0, state.reputation - 2); state.fans = Math.max(0, state.fans - 45);
-      addLedger(`Bolsa de participação: ${fighter.name}`, 'Vale Regional 01', Math.round(reward * .28), 'income');
+      addLedger(`Bolsa de participação: ${fighter.name}`, eventLabel, Math.round(reward * .28), 'income');
       state.cash += Math.round(reward * .28);
       addMessage(`${fighter.name} perdeu para ${fight.opponent.name} por ${method}. A equipe volta ao camp com dados para evoluir.`);
       fight.result = { won: false, method, summary: `Bolsa de participação de ${money(Math.round(reward * .28))}; reputação -2 e aprendizado registrado para o próximo camp.` };
       toast(`Resultado por ${method}. A trajetória continua.`);
+    }
+    if (promotedEvent) {
+      settlePromotedEvent(promotedEvent, won);
+      fight.result.summary += ` ${promotedEvent.name} foi liquidado no caixa com bilheteria, mídia e produção.`;
     }
   }
   function executeTactic(key) {
@@ -658,9 +805,21 @@
     state.cash -= payroll; state.week += 1; state.date = `Semana ${state.week} · 2026`;
     simulateWorldCycle();
     state.contracts.forEach((contract) => { if (contract.status === 'ativo') contract.remainingWeeks = Math.max(0, (contract.remainingWeeks ?? contract.duration * 52) - 1); });
-    state.fighters.forEach((fighter) => { fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked ? 2 : -1))); fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1)); if (state.fightBooked) fighter.camp = Math.min(100, (fighter.camp || 20) + 7); });
+    const plannedShow = state.eventPlanner?.activeEvent?.status === 'planned';
+    state.fighters.forEach((fighter) => { fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked || plannedShow ? 2 : -1))); fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1)); if (state.fightBooked || plannedShow) fighter.camp = Math.min(100, (fighter.camp || 20) + 7); });
     addLedger('Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
-    if (state.fightBooked && state.fight.status === 'preparing' && state.week >= state.fight.readyWeek) {
+    const promotedEvent = state.eventPlanner?.activeEvent;
+    if (promotedEvent?.status === 'planned' && state.week >= promotedEvent.week) {
+      const fighter = state.fighters.find((candidate) => candidate.id === promotedEvent.fighterId);
+      if (fighter) {
+        state.selectedFighterId = fighter.id;
+        promotedEvent.status = 'ready';
+        state.fightBooked = true;
+        state.fight = { ...createFightState(), status: 'ready', readyWeek: state.week, eventId: promotedEvent.id, opponent: promotedEvent.opponent, playerStamina: Math.min(100, (fighter.conditioning || 70) + 15) };
+        addMessage(`${promotedEvent.name} abriu os portões na ${promotedEvent.venueName}. ${fighter.name} está pronto(a) para a luta principal contra ${promotedEvent.opponent.name}.`);
+        toast('Seu evento está pronto. Entre na Fight Night para comandar a luta principal.');
+      }
+    } else if (state.fightBooked && state.fight.status === 'preparing' && state.week >= state.fight.readyWeek) {
       state.fight.status = 'ready';
       addMessage(`A preparação terminou. ${selectedFighter().name} está pronto(a) para enfrentar ${state.fight.opponent.name} no Vale Regional 01.`);
       toast('Noite de luta liberada. Entre no evento para orientar o combate.');
@@ -684,6 +843,12 @@
       if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));
       if (action === 'reset-offer') resetOffer();
       if (action === 'submit-offer') submitOffer();
+      if (action === 'select-event-venue') selectEventVenue(button.dataset.id);
+      if (action === 'select-event-promotion') selectEventPromotion(button.dataset.id);
+      if (action === 'select-event-date') selectEventDate(Number(button.dataset.offset));
+      if (action === 'select-event-fighter') selectEventFighter(button.dataset.id);
+      if (action === 'plan-event') planEvent();
+      if (action === 'open-event-fight') { state.view = 'fight'; persist(); render(); }
       if (action === 'select-fighter') { state.selectedFighterId = button.dataset.id; persist(); if (button.dataset.navAfter) state.view = button.dataset.navAfter; render(); }
       if (action === 'upgrade') upgrade(button.dataset.facility, Number(button.dataset.cost));
       if (action === 'train') train();
