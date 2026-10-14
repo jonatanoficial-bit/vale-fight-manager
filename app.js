@@ -1,4 +1,4 @@
-/* Vale Fight Manager — Fases 1 a 6
+/* Vale Fight Manager — Fases 1 a 9
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -73,6 +73,15 @@
       history: [],
     };
   }
+  function createScoutingState() {
+    return { selectedProspectId: 'mendes', reports: {}, shortlist: [], filter: 'todos', seed: 730201, history: [] };
+  }
+  function createStaffCenterState() {
+    return { hiredIds: [], history: [] };
+  }
+  function createSponsorshipState() {
+    return { active: [], history: [] };
+  }
   const campSessions = {
     striking: { label: 'Striking técnico', icon: '✦', copy: 'Precisão, combinações e leitura de distância.', gains: { striking: 2, defense: 1 }, fatigue: 9, camp: 6, facility: 'ring' },
     grappling: { label: 'Grappling & quedas', icon: '◈', copy: 'Controle, transições e defesa de quedas.', gains: { grappling: 2, fightIQ: 1 }, fatigue: 10, camp: 6, facility: 'cage' },
@@ -89,6 +98,19 @@
     strategy: { label: 'QI de luta', attribute: 'fightIQ', copy: 'Aprimora decisões, defesa e leitura tática.' },
   };
   const campAttributeLabels = { striking: 'Striking', grappling: 'Grappling', cardio: 'Cardio', defense: 'Defesa', fightIQ: 'QI de luta' };
+  const staffMarket = [
+    { id: 'marco-silva', name: 'Marco Silva', role: 'Coach de striking', specialty: 'Precisão, combinações e leitura ofensiva.', salary: 6200, signing: 9000, capacity: 3, icon: '✦', effects: { striking: .75, defense: .25 } },
+    { id: 'darius-kane', name: 'Darius Kane', role: 'Coach de grappling', specialty: 'Quedas, clinch e transição de solo.', salary: 6700, signing: 10500, capacity: 3, icon: '◈', effects: { grappling: .8, fightIQ: .28 } },
+    { id: 'elena-morozova', name: 'Elena Morozova', role: 'Preparadora física', specialty: 'Cardio, carga e recuperação pós-camp.', salary: 5900, signing: 8200, capacity: 4, icon: '↟', effects: { cardio: .72, recovery: .34 } },
+    { id: 'ana-soares', name: 'Dra. Ana Soares', role: 'Fisioterapeuta', specialty: 'Prevenção, recuperação e disponibilidade médica.', salary: 5800, signing: 7600, capacity: 5, icon: '♡', effects: { recovery: .82 } },
+    { id: 'camila-rocha', name: 'Camila Rocha', role: 'Olheira internacional', specialty: 'Relatórios mais rápidos e leitura de potencial.', salary: 4900, signing: 6200, capacity: 8, icon: '⌕', effects: { scouting: .85 } },
+    { id: 'yuri-costa', name: 'Yuri Costa', role: 'Diretor de marketing', specialty: 'Público, parceiros e valor de marca.', salary: 5400, signing: 7000, capacity: 6, icon: '◌', effects: { marketing: .7 } },
+  ];
+  const sponsorshipOffers = [
+    { id: 'prime-edge', name: 'Prime Edge', category: 'Performance', minReputation: 18, minFans: 700, upfront: 18000, weekly: 4200, eventBonus: 8500, duration: 12, copy: 'Equipamento de performance para atletas em ascensão.' },
+    { id: 'aurum-fuel', name: 'Aurum Fuel', category: 'Nutrição', minReputation: 30, minFans: 1600, upfront: 36000, weekly: 7200, eventBonus: 14500, duration: 16, copy: 'Parceria de nutrição com ativações em Fight Nights.' },
+    { id: 'vertex-media', name: 'Vertex Media', category: 'Mídia regional', minReputation: 42, minFans: 3200, upfront: 62000, weekly: 11000, eventBonus: 26000, duration: 20, copy: 'Cobertura regional e crescimento de audiência da academia.' },
+  ];
   function baseDevelopment(fighter) {
     const rating = Number(fighter.rating) || 62;
     const isBoxer = fighter.discipline === 'Boxe';
@@ -168,7 +190,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 6,
+      schemaVersion: 9,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -200,6 +222,9 @@
       negotiation: createNegotiationState(),
       eventPlanner: createEventPlannerState(),
       trainingCamp: createTrainingCampState(),
+      scouting: createScoutingState(),
+      staffCenter: createStaffCenterState(),
+      sponsorship: createSponsorshipState(),
     };
   }
 
@@ -207,7 +232,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 6 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 9 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
@@ -215,6 +240,9 @@
         migrated.negotiation = parsed.negotiation ? { ...createNegotiationState(), ...parsed.negotiation } : createNegotiationState();
         migrated.eventPlanner = parsed.eventPlanner ? { ...createEventPlannerState(), ...parsed.eventPlanner, history: Array.isArray(parsed.eventPlanner.history) ? parsed.eventPlanner.history : [] } : createEventPlannerState();
         migrated.trainingCamp = parsed.trainingCamp ? { ...createTrainingCampState(), ...parsed.trainingCamp, weeklyPlan: Array.isArray(parsed.trainingCamp.weeklyPlan) && parsed.trainingCamp.weeklyPlan.length === 7 ? parsed.trainingCamp.weeklyPlan : createTrainingCampState().weeklyPlan, history: Array.isArray(parsed.trainingCamp.history) ? parsed.trainingCamp.history : [] } : createTrainingCampState();
+        migrated.scouting = parsed.scouting ? { ...createScoutingState(), ...parsed.scouting, reports: parsed.scouting.reports && typeof parsed.scouting.reports === 'object' ? parsed.scouting.reports : {}, shortlist: Array.isArray(parsed.scouting.shortlist) ? parsed.scouting.shortlist : [], history: Array.isArray(parsed.scouting.history) ? parsed.scouting.history : [] } : createScoutingState();
+        migrated.staffCenter = parsed.staffCenter ? { ...createStaffCenterState(), ...parsed.staffCenter, hiredIds: Array.isArray(parsed.staffCenter.hiredIds) ? parsed.staffCenter.hiredIds : [], history: Array.isArray(parsed.staffCenter.history) ? parsed.staffCenter.history : [] } : createStaffCenterState();
+        migrated.sponsorship = parsed.sponsorship ? { ...createSponsorshipState(), ...parsed.sponsorship, active: Array.isArray(parsed.sponsorship.active) ? parsed.sponsorship.active : [], history: Array.isArray(parsed.sponsorship.history) ? parsed.sponsorship.history : [] } : createSponsorshipState();
         migrated.fighters = Array.isArray(parsed.fighters) ? parsed.fighters : [];
         migrated.fighters.forEach((fighter) => ensureDevelopment(fighter));
         return migrated;
@@ -255,6 +283,19 @@
   }
   function prospectById(id) { return prospects.find((fighter) => fighter.id === id); }
   function eventPlanner() { return state.eventPlanner || createEventPlannerState(); }
+  function scoutingCenter() { return state.scouting || createScoutingState(); }
+  function staffCenter() { return state.staffCenter || createStaffCenterState(); }
+  function sponsorshipCenter() { return state.sponsorship || createSponsorshipState(); }
+  function staffById(id) { return staffMarket.find((member) => member.id === id); }
+  function hiredStaff() { return staffCenter().hiredIds.map(staffById).filter(Boolean); }
+  function staffBonus(key) { return hiredStaff().reduce((sum, member) => sum + (member.effects[key] || 0), 0); }
+  function staffPayroll() { return hiredStaff().reduce((sum, member) => sum + member.salary, 0); }
+  function sponsorById(id) { return sponsorshipOffers.find((sponsor) => sponsor.id === id); }
+  function sponsorEligible(sponsor) { return state.reputation >= sponsor.minReputation && state.fans >= sponsor.minFans; }
+  function activeSponsors() { return sponsorshipCenter().active.filter((contract) => contract.status === 'ativo'); }
+  function sponsorEventBonus() { return activeSponsors().reduce((sum, contract) => sum + (sponsorById(contract.sponsorId)?.eventBonus || 0), 0); }
+  function prospectReport(prospect) { return scoutingCenter().reports[prospect.id] || null; }
+  function scoutTurnaround() { return Math.max(1, 2 - Math.floor(staffBonus('scouting'))); }
   function selectedVenue() { return eventVenues.find((venue) => venue.id === eventPlanner().venueId) || eventVenues[0]; }
   function selectedPromotion() { return promotionPlans.find((plan) => plan.id === eventPlanner().promotionId) || promotionPlans[1]; }
   function eventFighter() {
@@ -262,15 +303,17 @@
     return state.fighters.find((fighter) => fighter.id === planner.fighterId) || selectedFighter();
   }
   function eventEstimate(fighter = eventFighter(), venue = selectedVenue(), promotion = selectedPromotion()) {
-    if (!fighter) return { attendance: 0, gate: 0, media: 0, operating: venue.production, purse: 0, totalCost: venue.rental + promotion.cost + venue.production, projected: -(venue.rental + promotion.cost + venue.production) };
-    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience;
+    const sponsorBonus = sponsorEventBonus();
+    if (!fighter) return { attendance: 0, gate: 0, media: 0, sponsorBonus, operating: venue.production, purse: 0, totalCost: venue.rental + promotion.cost + venue.production, projected: -(venue.rental + promotion.cost + venue.production) + sponsorBonus };
+    const marketing = staffBonus('marketing');
+    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience + marketing * 140;
     const attendance = Math.min(venue.capacity, Math.max(600, Math.round(interest)));
     const gate = attendance * venue.ticket;
-    const media = promotion.media + Math.round(state.reputation * 330);
+    const media = promotion.media + Math.round(state.reputation * 330) + Math.round(marketing * 9000);
     const purse = 26000 + fighter.rating * 440;
     const operating = venue.production + Math.round(attendance * 7.5);
     const totalCost = venue.rental + promotion.cost + operating;
-    return { attendance, gate, media, operating, purse, totalCost, projected: gate + media - totalCost + purse };
+    return { attendance, gate, media, sponsorBonus, operating, purse, totalCost, projected: gate + media + sponsorBonus - totalCost + purse };
   }
   function eventStatusCopy(event) {
     if (!event) return 'Configure seu primeiro card autoral.';
@@ -427,7 +470,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('training', '✦', 'Camp')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 6</strong>Carreira local · camp semanal, atributos e disponibilidade física</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Fases 7–9</strong>Mercado observado · equipe especializada · marca monetizada</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -484,6 +527,32 @@
     const report = camp.lastReport;
     const reportMarkup = report ? `<div class="camp-report"><div><span class="eyebrow">Última semana aplicada · S${report.week}</span><strong>${escapeHTML(report.title)}</strong><p>${escapeHTML(report.copy)}</p></div><span class="${report.injured ? 'report-alert' : 'report-good'}">${report.injured ? 'ATENÇÃO' : '+ EVOLUÇÃO'}</span></div>` : `<div class="camp-report empty"><div><span class="eyebrow">Próxima resolução</span><strong>A rotina será aplicada ao avançar a semana.</strong><p>As escolhas abaixo mudam preparo, atributos e disponibilidade do atleta.</p></div></div>`;
     return `<section class="content training-page"><div class="page-heading"><div><div class="eyebrow">Centro de treinamento · preparação semanal</div><h1>Construa o<br><span class="text-gold">melhor camp.</span></h1><p class="page-copy">Cada dia tem efeito real: os atributos alimentam a simulação da Fight Night, a fadiga limita o desempenho e uma lesão impede novos cards até a recuperação.</p></div><button class="button" data-action="advance-week">APLICAR SEMANA</button></div><section class="training-hero card"><div class="training-hero-backdrop"></div><div class="training-hero-main">${fighterAvatar(fighter, 'camp-portrait')}<div><div class="eyebrow">Atleta no camp</div><h2>${escapeHTML(fighter.name)}</h2><p>${fighterIdentity(fighter)} · ${fighter.discipline} · ${fighter.division} · ${fighter.rating} OVR</p><div class="camp-availability ${readyForFight ? 'ready' : 'injured'}"><span>${readyForFight ? '●' : '!'}</span>${readyForFight ? 'DISPONÍVEL PARA LUTAR' : escapeHTML(injuryLabel(fighter).toUpperCase())}</div></div></div><div class="training-hero-state"><div><small>FADIGA</small><strong>${development.fatigue}<em>/100</em></strong></div><div><small>PREPARO</small><strong>${fighter.camp || 0}<em>%</em></strong></div><div><small>RISCO SEMANAL</small><strong class="${risk >= 22 ? 'text-red' : 'text-green'}">${risk}%</strong></div></div></section><section class="training-layout"><article class="card camp-plan-card"><div class="card-title"><span>Plano da semana</span><small>edite antes de avançar o calendário</small></div><div class="camp-body"><div class="camp-athlete-row">${state.fighters.map((candidate) => `<button class="camp-athlete-choice ${candidate.id === fighter.id ? 'selected' : ''}" data-action="select-camp-fighter" data-id="${candidate.id}">${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate, true)} · ${candidate.discipline}</small></span>${fighterCanCompete(candidate) ? '<b>PRONTO</b>' : '<b class="text-red">LESÃO</b>'}</button>`).join('')}</div><div class="focus-row"><span>Foco do camp</span>${Object.entries(campFocuses).map(([key, option]) => `<button class="focus-choice ${camp.focus === key ? 'selected' : ''}" data-action="select-camp-focus" data-focus="${key}">${escapeHTML(option.label)}</button>`).join('')}</div><p class="focus-copy"><strong>${escapeHTML(focus.label)}:</strong> ${escapeHTML(focus.copy)}</p><div class="camp-calendar">${plan.map((key, index) => { const session = campSessions[key]; return `<div class="camp-day"><div><span>DIA ${index + 1}</span><strong>${escapeHTML(session.label)}</strong><small>${escapeHTML(session.copy)}</small></div><button class="session-cycle" data-action="cycle-camp-session" data-day="${index}" aria-label="Alterar atividade do dia ${index + 1}">${session.icon}</button></div>`; }).join('')}</div><p class="camp-hint">Clique no ícone de cada dia para alternar a atividade. Sparring acelera o preparo, mas eleva a fadiga e o risco.</p></div></article><aside class="training-side"><article class="card attribute-card"><div class="card-title"><span>Perfil competitivo</span><small>impacta a Fight Night</small></div><div class="attribute-list">${Object.entries(development.attributes).map(([key, value]) => progress(campAttributeLabels[key], Math.round(value), key === focus.attribute ? 'background:linear-gradient(90deg,#ea293d,#ffc85d)' : '')).join('')}</div><div class="attribute-footer"><span>Impacto tático atual</span><strong>${Math.round(effectiveCombatRating(fighter, camp.focus))} FORÇA</strong></div></article>${reportMarkup}<article class="card camp-guidance"><div class="card-title"><span>Leitura da equipe</span><small>semana ${state.week}</small></div><div class="section-body"><ul class="feature-list"><li>${state.facilities.recovery ? `Recuperação nível ${state.facilities.recovery} reduz o risco do camp.` : 'Construa Recuperação na Academia para reduzir o risco de lesão.'}</li><li>${sparringDays ? `${sparringDays} sessão(ões) de sparring configurada(s): ganho alto, carga maior.` : 'Sem sparring: menor ganho de preparo, mas rotina mais segura.'}</li><li>${readyForFight ? 'O atleta está elegível para aceitar uma luta ou liderar um evento.' : 'Atleta em recuperação: novos cards e lutas ficam bloqueados até a liberação.'}</li></ul></div></article></aside></section></section>`;
+  }
+  function scoutingView() {
+    const scouting = scoutingCenter();
+    const available = prospects.filter((prospect) => !state.signedIds.includes(prospect.id));
+    const filtered = scouting.filter === 'todos' ? available : available.filter((prospect) => prospect.discipline.toLowerCase() === scouting.filter);
+    const prospect = filtered.find((candidate) => candidate.id === scouting.selectedProspectId) || filtered[0] || available[0] || null;
+    if (!prospect) return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Prospecção</div><h1>Mercado<br><span class="text-gold">esgotado.</span></h1><p class="page-copy">Todos os prospects desta primeira janela já foram contratados. Avance as semanas para renovar o mercado.</p></div><button class="button" data-action="advance-week">AVANÇAR SEMANA</button></div></section>`;
+    const report = prospectReport(prospect);
+    const reportComplete = report?.status === 'complete';
+    const pending = report?.status === 'pending';
+    const traits = reportComplete ? Object.entries(report.attributes).map(([key, value]) => progress(campAttributeLabels[key], value)).join('') : '<div class="scout-unknown">Atributos detalhados ficam ocultos até a conclusão do relatório.</div>';
+    const action = reportComplete ? `<button class="button" data-action="scout-negotiate" data-id="${prospect.id}">ABRIR NEGOCIAÇÃO</button>` : pending ? `<button class="button secondary" disabled>EM CAMPO · S${report.dueWeek}</button>` : `<button class="button" data-action="request-scout-report" data-id="${prospect.id}">SOLICITAR RELATÓRIO · ${money(reportCost())}</button>`;
+    return `<section class="content scouting-page"><div class="page-heading"><div><div class="eyebrow">Prospecção & inteligência de mercado</div><h1>Encontre o<br><span class="text-gold">próximo nome.</span></h1><p class="page-copy">Observar não contrata automaticamente. Solicite um relatório, aguarde a apuração e só então transforme informação em proposta.</p></div><button class="button secondary" data-nav="negotiation">VER CONTRATOS</button></div><section class="scouting-summary">${statCard('Prospects disponíveis', available.length, `${scouting.shortlist.length} na lista curta`, 'var(--gold-bright)')}${statCard('Relatórios em campo', Object.values(scouting.reports).filter((entry) => entry.status === 'pending').length, staffBonus('scouting') ? 'olheira reduz prazo' : 'prazo padrão: 2 semanas', 'var(--blue)')}${statCard('Inteligência da equipe', `${Math.round(staffBonus('scouting') * 100)}%`, staffBonus('scouting') ? 'relatórios aprimorados' : 'contrate uma olheira para ampliar a leitura', 'var(--green)')}</section><section class="scouting-layout"><article class="card scout-list-card"><div class="card-title"><span>Mapa de prospects</span><small>filtros por modalidade</small></div><div class="scout-filters">${[['todos', 'Todos'], ['mma', 'MMA'], ['boxe', 'Boxe']].map(([key, label]) => `<button class="ranking-tab ${scouting.filter === key ? 'selected' : ''}" data-action="filter-scouting" data-filter="${key}">${label}</button>`).join('')}</div><div class="scout-list">${filtered.map((candidate) => { const itemReport = prospectReport(candidate); return `<button class="scout-row ${candidate.id === prospect.id ? 'selected' : ''}" data-action="select-scout-prospect" data-id="${candidate.id}">${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.division}</small></span><em>${itemReport?.status === 'complete' ? 'DOSSIÊ' : itemReport?.status === 'pending' ? `S${itemReport.dueWeek}` : 'NÃO VISTO'}</em></button>`; }).join('')}</div></article><article class="card scout-dossier"><div class="scout-dossier-hero">${fighterAvatar(prospect, 'deal-portrait')}<div><div class="eyebrow">${reportComplete ? 'Dossiê confirmado' : pending ? 'Equipe em campo' : 'Perfil preliminar'}</div><h2>${escapeHTML(prospect.name)}</h2><p>${fighterIdentity(prospect)} · ${prospect.age} anos · ${prospect.discipline} · ${prospect.division}</p></div><div class="deal-rating"><span>OVR</span><strong>${prospect.rating}</strong><small>${reportComplete ? `${prospect.potential} potencial` : 'potencial oculto'}</small></div></div><div class="scout-dossier-body"><div class="scout-trait-grid"><div><span>ESTILO</span><strong>${escapeHTML(prospect.style)}</strong></div><div><span>FAIXA DE MERCADO</span><strong>${money(prospect.signing)} + ${money(prospect.salary)}/semana</strong></div><div><span>STATUS</span><strong>${reportComplete ? 'VERIFICADO' : pending ? 'EM ANÁLISE' : 'NÃO VERIFICADO'}</strong></div></div>${reportComplete ? `<div class="scout-report-note"><strong>${escapeHTML(report.summary)}</strong><small>Risco físico: ${escapeHTML(report.risk)} · Disciplina: ${escapeHTML(report.discipline)}</small></div>` : '<div class="scout-report-note muted"><strong>O dossiê completo revela atributos, disciplina e risco físico.</strong><small>O resultado é persistente e só se resolve ao avançar a semana.</small></div>'}</div><div class="attribute-list scout-attributes">${traits}</div><div class="scout-actions"><button class="button secondary" data-action="toggle-shortlist" data-id="${prospect.id}">${scouting.shortlist.includes(prospect.id) ? 'REMOVER DA LISTA' : 'ADICIONAR À LISTA'}</button>${action}</div></article><aside class="scouting-side"><article class="card"><div class="card-title"><span>Lista curta</span><small>${scouting.shortlist.length} atleta(s)</small></div><div class="scout-shortlist">${scouting.shortlist.length ? scouting.shortlist.map((id) => { const candidate = prospectById(id); return candidate ? `<div>${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${candidate.discipline} · ${candidate.rating} OVR</small></span></div>` : ''; }).join('') : '<p>Nenhum atleta priorizado.</p>'}</div></article><article class="card scout-insight"><div class="card-title"><span>Como funciona</span><small>fluxo funcional</small></div><div class="section-body"><ul class="feature-list"><li>Solicite observação e o relatório entra na agenda.</li><li>Avance a semana para revelar dados e traços do atleta.</li><li>Negocie depois de avaliar custo, estilo e risco.</li></ul></div></article></aside></section></section>`;
+  }
+  function staffView() {
+    const center = staffCenter();
+    const hired = hiredStaff();
+    const capacity = state.staff + state.academyLevel + 2;
+    const payroll = staffPayroll();
+    return `<section class="content staff-page"><div class="page-heading"><div><div class="eyebrow">Equipe técnica & operação</div><h1>Quem prepara<br><span class="text-gold">campeões.</span></h1><p class="page-copy">Especialistas melhoram relatórios, atributos, recuperação, interesse de marca e resultado de eventos. Seus salários entram na folha semanal.</p></div><button class="button secondary" data-nav="training">ABRIR CAMP</button></div><section class="staff-summary">${statCard('Núcleo operacional', state.staff, 'equipe base da dificuldade', 'var(--white)')}${statCard('Especialistas ativos', `${hired.length}/${capacity}`, `${hired.reduce((sum, member) => sum + member.capacity, 0)} atletas supervisionados`, 'var(--gold-bright)')}${statCard('Folha especializada', money(payroll), 'cobrada por semana', payroll ? '#ffb15d' : 'var(--muted)')}${statCard('Eficiência de camp', `+${Math.round((staffBonus('striking') + staffBonus('grappling') + staffBonus('cardio')) * 10)}%`, 'bônus distribuído por especialidade', 'var(--green)')}</section><section class="staff-layout"><article class="card staff-market"><div class="card-title"><span>Mercado de especialistas</span><small>contratos persistentes</small></div><div class="staff-cards">${staffMarket.map((member) => { const active = center.hiredIds.includes(member.id); const full = hired.length >= capacity; return `<article class="staff-card ${active ? 'hired' : ''}"><div class="staff-monogram">${member.icon}</div><div><span>${escapeHTML(member.role)}</span><strong>${escapeHTML(member.name)}</strong><p>${escapeHTML(member.specialty)}</p><small>${money(member.salary)}/semana · supervisiona ${member.capacity} atleta(s)</small></div><button class="button ${active ? 'secondary' : ''}" data-action="hire-staff" data-id="${member.id}" ${active || full ? 'disabled' : ''}>${active ? 'NA EQUIPE' : full ? 'CAPACIDADE CHEIA' : `${money(member.signing)} +`}</button></article>`; }).join('')}</div></article><aside class="staff-side"><article class="card staff-synergy"><div class="card-title"><span>Sinergia aplicada</span><small>efeitos reais</small></div><div class="section-body"><div class="staff-effect"><span>✦</span><div><strong>Treino técnico</strong><small>Striking +${staffBonus('striking').toFixed(1)} · Grappling +${staffBonus('grappling').toFixed(1)}</small></div></div><div class="staff-effect"><span>♡</span><div><strong>Recuperação</strong><small>Redução de fadiga +${staffBonus('recovery').toFixed(1)}</small></div></div><div class="staff-effect"><span>⌕</span><div><strong>Prospecção</strong><small>Precisão de scout +${staffBonus('scouting').toFixed(1)}</small></div></div><div class="staff-effect"><span>◌</span><div><strong>Marca & evento</strong><small>Alcance de marketing +${staffBonus('marketing').toFixed(1)}</small></div></div></div></article><article class="card"><div class="card-title"><span>Histórico</span><small>${center.history.length} registro(s)</small></div><div class="staff-history">${center.history.length ? center.history.slice(0, 5).map((entry) => `<div><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.copy)} · S${entry.week}</small></div>`).join('') : '<p>A primeira contratação técnica aparecerá aqui.</p>'}</div></article></aside></section></section>`;
+  }
+  function sponsorshipView() {
+    const center = sponsorshipCenter();
+    const active = activeSponsors();
+    const weekly = active.reduce((sum, contract) => sum + (sponsorById(contract.sponsorId)?.weekly || 0), 0);
+    return `<section class="content sponsorship-page"><div class="page-heading"><div><div class="eyebrow">Marca, parceiros & receitas</div><h1>Transforme<br><span class="text-gold">atenção em valor.</span></h1><p class="page-copy">As marcas são autorais e seus contratos não são decorativos: pagam na assinatura, geram receita semanal e bonificam eventos próprios.</p></div><button class="button secondary" data-nav="finance">VER LIVRO-CAIXA</button></div><section class="sponsor-summary">${statCard('Parceiros ativos', active.length, active.length ? 'contratos em vigência' : 'ofertas disponíveis', 'var(--gold-bright)')}${statCard('Receita semanal', money(weekly), 'lançada ao fechar a semana', 'var(--green)')}${statCard('Bônus por evento', money(sponsorEventBonus()), 'liquidado após a Fight Night', 'var(--blue)')}${statCard('Força da marca', state.reputation, `${state.fans.toLocaleString('pt-BR')} fãs na base`, 'var(--white)')}</section><section class="sponsor-layout"><article class="card sponsor-offers"><div class="card-title"><span>Ofertas de parceria</span><small>requisitos verificáveis</small></div><div class="sponsor-offer-list">${sponsorshipOffers.map((sponsor) => { const contract = active.find((entry) => entry.sponsorId === sponsor.id); const eligible = sponsorEligible(sponsor); return `<article class="sponsor-offer ${contract ? 'active' : ''}"><div class="sponsor-symbol">${sponsor.name.slice(0, 1)}</div><div><span>${escapeHTML(sponsor.category)}</span><strong>${escapeHTML(sponsor.name)}</strong><p>${escapeHTML(sponsor.copy)}</p><small>Entrada ${money(sponsor.upfront)} · ${money(sponsor.weekly)}/semana · ${money(sponsor.eventBonus)} por show</small></div><div class="sponsor-terms"><em>${contract ? `${contract.remainingWeeks} sem.` : eligible ? 'ELEGÍVEL' : 'BLOQUEADO'}</em><small>Req. rep. ${sponsor.minReputation} · ${sponsor.minFans.toLocaleString('pt-BR')} fãs</small><button class="button ${contract ? 'secondary' : ''}" data-action="accept-sponsor" data-id="${sponsor.id}" ${contract || !eligible ? 'disabled' : ''}>${contract ? 'ATIVO' : eligible ? 'ASSINAR' : 'SEM ALCANCE'}</button></div></article>`; }).join('')}</div></article><aside class="sponsor-side"><article class="card active-sponsors"><div class="card-title"><span>Contratos ativos</span><small>${active.length}/2 vagas</small></div>${active.length ? active.map((contract) => { const sponsor = sponsorById(contract.sponsorId); return `<div class="active-sponsor-row"><div class="sponsor-symbol">${sponsor.name.slice(0, 1)}</div><div><strong>${escapeHTML(sponsor.name)}</strong><small>${contract.remainingWeeks} semanas · ${money(sponsor.weekly)}/semana</small></div><span class="pill">ATIVO</span></div>`; }).join('') : '<div class="contract-empty">Nenhuma marca vinculada. Aumente reputação e fãs ou assine a proposta elegível.</div>'}</article><article class="card sponsor-forecast"><div class="card-title"><span>Próxima liquidação</span><small>automática</small></div><div class="section-body"><strong>${money(weekly)}</strong><p class="text-muted">Entrará no caixa quando a próxima semana for fechada. O histórico será registrado no livro-caixa.</p></div></article><article class="card"><div class="card-title"><span>Histórico de marca</span><small>${center.history.length} registro(s)</small></div><div class="staff-history">${center.history.length ? center.history.slice(0, 5).map((entry) => `<div><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.copy)} · S${entry.week}</small></div>`).join('') : '<p>Assinaturas e encerramentos aparecerão aqui.</p>'}</div></article></aside></section></section>`;
   }
   function rankingTabs() {
     const discipline = state.world.selectedDiscipline;
@@ -571,7 +640,7 @@
     const fighterOptions = state.fighters.length ? `<div class="event-choice-row">${state.fighters.map((candidate) => `<button class="event-fighter-choice ${fighter?.id === candidate.id ? 'selected' : ''}" data-action="select-event-fighter" data-id="${candidate.id}" ${locked ? 'disabled' : ''}>${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.division}</small></span><b>${candidate.rating} OVR</b></button>`).join('')}</div>` : '<div class="event-empty">Assine um atleta antes de organizar um evento próprio.</div>';
     const activePanel = active && active.status !== 'complete' ? `<article class="card event-command"><div class="event-command-top"><div><div class="eyebrow">Show em andamento</div><h2>${escapeHTML(active.name)}</h2><p>${escapeHTML(eventStatusCopy(active))}</p></div><span class="event-status ${active.status}">${active.status === 'ready' ? 'PORTÕES ABERTOS' : active.status === 'live' ? 'AO VIVO' : 'CONFIRMADO'}</span></div><div class="event-command-grid"><div><small>ARENA</small><strong>${escapeHTML(active.venueName)}</strong></div><div><small>DATA</small><strong>SEMANA ${active.week}</strong></div><div><small>MAIN EVENT</small><strong>${escapeHTML(active.fighterName)} × ${escapeHTML(active.opponent.name)}</strong></div></div><div class="event-command-actions">${active.status === 'ready' ? '<button class="button" data-action="open-event-fight">ENTRAR NA FIGHT NIGHT</button>' : '<button class="button secondary" data-action="advance-week">AVANÇAR SEMANA</button>'}<button class="button secondary" data-nav="finance">VER CAIXA</button></div></article>` : '';
     const history = planner.history.length ? planner.history.slice(0, 3).map((event) => `<div class="event-history-row"><div><strong>${escapeHTML(event.name)}</strong><small>${escapeHTML(event.venueName)} · S${event.week} · ${event.attendance.toLocaleString('pt-BR')} presentes</small></div><strong class="${event.profit >= 0 ? 'text-green' : 'text-red'}">${event.profit >= 0 ? '+' : '−'}${money(Math.abs(event.profit))}</strong></div>`).join('') : '<div class="event-empty">Os resultados dos seus shows aparecerão aqui.</div>';
-    return `<section class="content event-page"><div class="page-heading"><div><div class="eyebrow">Produção de eventos · circuito autoral</div><h1>Construa o<br><span class="text-gold">seu show.</span></h1><p class="page-copy">Reserve a arena, escolha a campanha, escale a luta principal e assuma o risco operacional. O resultado entra no caixa somente depois da Fight Night.</p></div><button class="button secondary" data-nav="fight">FIGHT NIGHT</button></div>${activePanel}<section class="event-layout ${locked ? 'is-locked' : ''}"><article class="card event-builder"><div class="card-title"><span>1 · Arena & data</span><small>${locked ? 'produção travada até o show' : 'monte o evento'}</small></div><div class="event-arena-visual"><div><div class="eyebrow">VALE EVENTS</div><h2>${escapeHTML(venue.name)}</h2><p>${escapeHTML(venue.city)} · ${venue.capacity.toLocaleString('pt-BR')} lugares</p></div><span>${venue.badge}</span></div><div class="event-body"><div class="event-section-label">Escolha a praça</div><div class="venue-grid">${eventVenues.map((option) => `<button class="venue-choice ${venue.id === option.id ? 'selected' : ''}" data-action="select-event-venue" data-id="${option.id}" ${locked ? 'disabled' : ''}><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.city)} · ${option.capacity.toLocaleString('pt-BR')} pessoas</small><b>${money(option.rental)}</b></button>`).join('')}</div><div class="event-section-label">Janela de realização</div><div class="date-choice-row">${[2, 3, 4, 5].map((offset) => `<button class="date-choice ${planner.dateOffset === offset ? 'selected' : ''}" data-action="select-event-date" data-offset="${offset}" ${locked ? 'disabled' : ''}><strong>S${state.week + offset}</strong><small>em ${offset} semanas</small></button>`).join('')}</div></div></article><article class="card event-builder"><div class="card-title"><span>2 · Card & promoção</span><small>luta principal jogável</small></div><div class="event-body"><div class="event-section-label">Atleta da luta principal</div>${fighterOptions}<div class="event-section-label">Campanha</div><div class="promotion-grid">${promotionPlans.map((option) => `<button class="promotion-choice ${promotion.id === option.id ? 'selected' : ''}" data-action="select-event-promotion" data-id="${option.id}" ${locked ? 'disabled' : ''}><span>${option.id === 'broadcast' ? '◉' : option.id === 'regional' ? '◈' : '◇'}</span><div><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.copy)}</small></div><b>${money(option.cost)}</b></button>`).join('')}</div><div class="main-event-card">${fighter && opponent ? `<div>${fighterAvatar(fighter, 'portrait')}<strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div><b>VS</b><div>${fighterAvatar(opponent, 'portrait')}<strong>${escapeHTML(opponent.name)}</strong><small>${fighterIdentity(opponent)} · ${opponent.record}</small></div>` : '<span>Selecione um atleta para visualizar a luta principal.</span>'}</div></div></article><aside class="event-sidebar"><article class="card event-projection"><div class="card-title"><span>3 · Projeção</span><small>estimativa transparente</small></div><div class="event-projection-grid"><div><small>PÚBLICO</small><strong>${estimate.attendance.toLocaleString('pt-BR')}</strong><span>de ${venue.capacity.toLocaleString('pt-BR')}</span></div><div><small>BILHETERIA</small><strong>${money(estimate.gate)}</strong><span>${money(venue.ticket)} por ingresso</span></div><div><small>MÍDIA</small><strong>${money(estimate.media)}</strong><span>pacote estimado</span></div><div><small>OPERAÇÃO</small><strong class="text-red">${money(estimate.operating)}</strong><span>produção no dia</span></div></div><div class="event-profit"><span>Resultado estimado</span><strong class="${estimate.projected >= 0 ? 'text-green' : 'text-red'}">${estimate.projected >= 0 ? '+' : '−'}${money(Math.abs(estimate.projected))}</strong><small>inclui a bolsa projetada da luta principal</small></div><button class="button ${fighter && !locked ? '' : 'secondary'}" data-action="plan-event" ${!fighter || locked ? 'disabled' : ''}>CONFIRMAR · ${money(commitCost)}</button><p class="event-disclaimer">A reserva e o marketing são cobrados agora. Bilheteria, mídia e produção são liquidadas após o combate.</p></article><article class="card event-history"><div class="card-title"><span>Shows concluídos</span><small>${planner.history.length} registro(s)</small></div>${history}</article></aside></section></section>`;
+    return `<section class="content event-page"><div class="page-heading"><div><div class="eyebrow">Produção de eventos · circuito autoral</div><h1>Construa o<br><span class="text-gold">seu show.</span></h1><p class="page-copy">Reserve a arena, escolha a campanha, escale a luta principal e assuma o risco operacional. O resultado entra no caixa somente depois da Fight Night.</p></div><button class="button secondary" data-nav="fight">FIGHT NIGHT</button></div>${activePanel}<section class="event-layout ${locked ? 'is-locked' : ''}"><article class="card event-builder"><div class="card-title"><span>1 · Arena & data</span><small>${locked ? 'produção travada até o show' : 'monte o evento'}</small></div><div class="event-arena-visual"><div><div class="eyebrow">VALE EVENTS</div><h2>${escapeHTML(venue.name)}</h2><p>${escapeHTML(venue.city)} · ${venue.capacity.toLocaleString('pt-BR')} lugares</p></div><span>${venue.badge}</span></div><div class="event-body"><div class="event-section-label">Escolha a praça</div><div class="venue-grid">${eventVenues.map((option) => `<button class="venue-choice ${venue.id === option.id ? 'selected' : ''}" data-action="select-event-venue" data-id="${option.id}" ${locked ? 'disabled' : ''}><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.city)} · ${option.capacity.toLocaleString('pt-BR')} pessoas</small><b>${money(option.rental)}</b></button>`).join('')}</div><div class="event-section-label">Janela de realização</div><div class="date-choice-row">${[2, 3, 4, 5].map((offset) => `<button class="date-choice ${planner.dateOffset === offset ? 'selected' : ''}" data-action="select-event-date" data-offset="${offset}" ${locked ? 'disabled' : ''}><strong>S${state.week + offset}</strong><small>em ${offset} semanas</small></button>`).join('')}</div></div></article><article class="card event-builder"><div class="card-title"><span>2 · Card & promoção</span><small>luta principal jogável</small></div><div class="event-body"><div class="event-section-label">Atleta da luta principal</div>${fighterOptions}<div class="event-section-label">Campanha</div><div class="promotion-grid">${promotionPlans.map((option) => `<button class="promotion-choice ${promotion.id === option.id ? 'selected' : ''}" data-action="select-event-promotion" data-id="${option.id}" ${locked ? 'disabled' : ''}><span>${option.id === 'broadcast' ? '◉' : option.id === 'regional' ? '◈' : '◇'}</span><div><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.copy)}</small></div><b>${money(option.cost)}</b></button>`).join('')}</div><div class="main-event-card">${fighter && opponent ? `<div>${fighterAvatar(fighter, 'portrait')}<strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div><b>VS</b><div>${fighterAvatar(opponent, 'portrait')}<strong>${escapeHTML(opponent.name)}</strong><small>${fighterIdentity(opponent)} · ${opponent.record}</small></div>` : '<span>Selecione um atleta para visualizar a luta principal.</span>'}</div></div></article><aside class="event-sidebar"><article class="card event-projection"><div class="card-title"><span>3 · Projeção</span><small>estimativa transparente</small></div><div class="event-projection-grid"><div><small>PÚBLICO</small><strong>${estimate.attendance.toLocaleString('pt-BR')}</strong><span>de ${venue.capacity.toLocaleString('pt-BR')}</span></div><div><small>BILHETERIA</small><strong>${money(estimate.gate)}</strong><span>${money(venue.ticket)} por ingresso</span></div><div><small>MÍDIA</small><strong>${money(estimate.media)}</strong><span>pacote estimado</span></div><div><small>MARCAS</small><strong>${money(estimate.sponsorBonus)}</strong><span>bônus de parceiros</span></div><div><small>OPERAÇÃO</small><strong class="text-red">${money(estimate.operating)}</strong><span>produção no dia</span></div></div><div class="event-profit"><span>Resultado estimado</span><strong class="${estimate.projected >= 0 ? 'text-green' : 'text-red'}">${estimate.projected >= 0 ? '+' : '−'}${money(Math.abs(estimate.projected))}</strong><small>inclui a bolsa projetada e os parceiros ativos</small></div><button class="button ${fighter && !locked ? '' : 'secondary'}" data-action="plan-event" ${!fighter || locked ? 'disabled' : ''}>CONFIRMAR · ${money(commitCost)}</button><p class="event-disclaimer">A reserva e o marketing são cobrados agora. Bilheteria, mídia, marcas e produção são liquidadas após o combate.</p></article><article class="card event-history"><div class="card-title"><span>Shows concluídos</span><small>${planner.history.length} registro(s)</small></div>${history}</article></aside></section></section>`;
   }
   function chartBars() {
     const incomes = [48, 56, 61, 55, 68, 73, 77, 84];
@@ -581,7 +650,7 @@
   function financeView() {
     const income = state.ledger.filter((entry) => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0);
     const expenses = Math.abs(state.ledger.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum + entry.amount, 0));
-    return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Finanças & operação</div><h1>Caixa define<br><span class="text-gold">o alcance.</span></h1><p class="page-copy">Toda decisão deste protótipo gera lançamento no livro-caixa. A receita e os custos persistem no save local.</p></div><button class="button secondary" data-action="advance-week">FECHAR SEMANA</button></div><section class="stat-grid">${statCard('Saldo atual', money(state.cash), 'liquidez disponível', 'var(--green)')}${statCard('Entradas totais', money(income), 'capital e receitas', 'var(--gold-bright)')}${statCard('Saídas totais', money(expenses), 'estrutura e operação', '#ff6870')}${statCard('Projeção semanal', money(-(state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800)), `${state.staff} pessoa(s) na equipe`, 'var(--white)')}</section><section class="finance-grid"><article class="card"><div class="card-title"><span>Fluxo da operação</span><small>histórico ilustrativo + operações reais</small></div><div class="chart">${chartBars()}</div><div class="card-title"><span>Livro-caixa</span><small>${state.ledger.length} lançamentos</small></div><div class="ledger">${state.ledger.map((entry) => `<div class="ledger-row"><div><strong>${escapeHTML(entry.title)}</strong><small>${escapeHTML(entry.category)} · ${entry.week}</small></div><strong class="${entry.amount >= 0 ? 'text-green' : 'text-red'}">${entry.amount >= 0 ? '+' : '−'}${money(Math.abs(entry.amount))}</strong></div>`).join('')}</div></article><aside class="card insight"><div class="card-title"><span>Composição</span><small>nesta carreira</small></div><div class="ring"><strong>42%<small>capital</small></strong></div><div class="breakdown"><div class="breakdown-row"><span>Investimento inicial</span><strong>42%</strong></div><div class="breakdown-row"><span>Operação e contratos</span><strong>34%</strong></div><div class="breakdown-row"><span>Reserva de expansão</span><strong>24%</strong></div></div><div class="section-body" style="padding:20px 0 0"><p class="text-muted">A regra de ouro do Vale: não há recursos infinitos. Crescimento exige manter o caixa positivo.</p></div></aside></section></section>`;
+    return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Finanças & operação</div><h1>Caixa define<br><span class="text-gold">o alcance.</span></h1><p class="page-copy">Toda decisão deste protótipo gera lançamento no livro-caixa. A receita e os custos persistem no save local.</p></div><button class="button secondary" data-action="advance-week">FECHAR SEMANA</button></div><section class="stat-grid">${statCard('Saldo atual', money(state.cash), 'liquidez disponível', 'var(--green)')}${statCard('Entradas totais', money(income), 'capital e receitas', 'var(--gold-bright)')}${statCard('Saídas totais', money(expenses), 'estrutura e operação', '#ff6870')}${statCard('Projeção semanal', money(-(state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800 + staffPayroll() + 4500) + activeSponsors().reduce((sum, contract) => sum + (sponsorById(contract.sponsorId)?.weekly || 0), 0)), `${state.staff} base · ${hiredStaff().length} especialista(s) · ${activeSponsors().length} marca(s)`, 'var(--white)')}</section><section class="finance-grid"><article class="card"><div class="card-title"><span>Fluxo da operação</span><small>histórico ilustrativo + operações reais</small></div><div class="chart">${chartBars()}</div><div class="card-title"><span>Livro-caixa</span><small>${state.ledger.length} lançamentos</small></div><div class="ledger">${state.ledger.map((entry) => `<div class="ledger-row"><div><strong>${escapeHTML(entry.title)}</strong><small>${escapeHTML(entry.category)} · ${entry.week}</small></div><strong class="${entry.amount >= 0 ? 'text-green' : 'text-red'}">${entry.amount >= 0 ? '+' : '−'}${money(Math.abs(entry.amount))}</strong></div>`).join('')}</div></article><aside class="card insight"><div class="card-title"><span>Composição</span><small>nesta carreira</small></div><div class="ring"><strong>42%<small>capital</small></strong></div><div class="breakdown"><div class="breakdown-row"><span>Investimento inicial</span><strong>42%</strong></div><div class="breakdown-row"><span>Operação e contratos</span><strong>34%</strong></div><div class="breakdown-row"><span>Reserva de expansão</span><strong>24%</strong></div></div><div class="section-body" style="padding:20px 0 0"><p class="text-muted">A regra de ouro do Vale: não há recursos infinitos. Crescimento exige manter o caixa positivo.</p></div></aside></section></section>`;
   }
   function shell(viewMarkup) { return `<div class="app-shell">${sideBar()}<main class="main">${topBar()}${viewMarkup}</main></div>`; }
   function onboarding() {
@@ -604,6 +673,9 @@
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
     if (state.view === 'training') view = trainingView();
+    if (state.view === 'scouting') view = scoutingView();
+    if (state.view === 'staff') view = staffView();
+    if (state.view === 'sponsors') view = sponsorshipView();
     if (state.view === 'finance') view = financeView();
     app.innerHTML = shell(view);
     bindEvents();
@@ -628,6 +700,9 @@
     state.contractHistory = [{ fighter: starter.name, status: 'fundador', week: state.week, terms: `Contrato inicial · ${money(starter.salary)}/semana` }];
     state.eventPlanner = { ...createEventPlannerState(), fighterId: starter.id };
     state.trainingCamp = { ...createTrainingCampState(), fighterId: starter.id };
+    state.scouting = createScoutingState();
+    state.staffCenter = createStaffCenterState();
+    state.sponsorship = createSponsorshipState();
     state.ledger = [{ title: 'Capital de abertura', category: 'Início de carreira', amount: state.cash, week: 'S1', kind: 'income' }, { title: 'Licenças e abertura', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' }];
     state.cash -= 18000;
     state.complete = true;
@@ -637,6 +712,12 @@
   function beginNegotiation(id) {
     const prospect = prospectById(id);
     if (!prospect || state.signedIds.includes(id)) return;
+    if (scoutingCenter().reports[id]?.status !== 'complete') {
+      state.scouting.selectedProspectId = id;
+      state.view = 'scouting';
+      persist(); render(); toast('Solicite e conclua o dossiê de prospecção antes de negociar.');
+      return;
+    }
     state.negotiation = { ...createNegotiationState(), prospectId: id, offer: offerFor(prospect), seed: (state.world.seed + avatarIndex(id) * 9187 + state.week) >>> 0 };
     state.view = 'negotiation';
     persist(); render();
@@ -651,6 +732,7 @@
     const fighter = { ...prospect, signing: negotiatedOffer.signing, salary: negotiatedOffer.salary, status: 'ativo', conditioning: 68, morale: 68, camp: 18 };
     ensureDevelopment(fighter);
     state.fighters.push(fighter); state.signedIds.push(id); state.selectedFighterId = id;
+    state.scouting.shortlist = scoutingCenter().shortlist.filter((candidate) => candidate !== id);
     const contract = contractFor(fighter, negotiatedOffer);
     state.contracts.push(contract);
     state.contractHistory.unshift({ fighter: fighter.name, status: 'assinado', week: state.week, terms: `${money(negotiatedOffer.signing)} + ${money(negotiatedOffer.salary)}/semana` });
@@ -695,6 +777,110 @@
     state.contractHistory.unshift({ fighter: prospect.name, status: 'recusado', week: state.week, terms: `proposta ${score}/100 · ${money(offer.salary)}/semana` });
     addMessage(`${prospect.name} recusou a proposta de representação. A decisão foi registrada no histórico.`);
     persist(); render(); toast('A proposta foi recusada. Ajuste os termos antes de tentar novamente.');
+  }
+  function reportCost() { return Math.max(1200, Math.round(2800 - staffBonus('scouting') * 850)); }
+  function nextScoutRandom() {
+    const scouting = scoutingCenter();
+    scouting.seed = (scouting.seed * 1664525 + 1013904223) >>> 0;
+    return scouting.seed / 4294967296;
+  }
+  function requestScoutReport(id) {
+    const prospect = prospectById(id);
+    const scouting = scoutingCenter();
+    if (!prospect || state.signedIds.includes(id) || scouting.reports[id]?.status === 'pending' || scouting.reports[id]?.status === 'complete') return;
+    const cost = reportCost();
+    if (state.cash < cost) { toast('Caixa insuficiente para enviar a equipe de prospecção.'); return; }
+    state.cash -= cost;
+    scouting.reports[id] = { status: 'pending', requestedWeek: state.week, dueWeek: state.week + scoutTurnaround(), cost };
+    addLedger(`Prospecção: ${prospect.name}`, 'Relatório de atleta', -cost, 'expense');
+    addMessage(`A equipe de prospecção iniciou o dossiê de ${prospect.name}. Entrega prevista para a Semana ${scouting.reports[id].dueWeek}.`);
+    persist(); render(); toast('Relatório solicitado. A apuração será resolvida ao avançar a semana.');
+  }
+  function resolveScoutReports() {
+    const scouting = scoutingCenter();
+    Object.entries(scouting.reports).forEach(([id, report]) => {
+      if (report.status !== 'pending' || report.dueWeek > state.week) return;
+      const prospect = prospectById(id);
+      if (!prospect) return;
+      const baseline = baseDevelopment(prospect).attributes;
+      const attributes = Object.fromEntries(Object.entries(baseline).map(([key, value]) => [key, Math.max(35, Math.min(96, Math.round(value + (nextScoutRandom() - .5) * 6)))]));
+      const riskPool = ['baixo', 'moderado', 'monitorar carga'];
+      const disciplinePool = ['muito alta', 'consistente', 'oscilante'];
+      const strengths = Object.entries(attributes).sort(([, a], [, b]) => b - a).slice(0, 2).map(([key]) => campAttributeLabels[key].toLowerCase()).join(' e ');
+      scouting.reports[id] = { ...report, status: 'complete', completedWeek: state.week, attributes, risk: riskPool[Math.floor(nextScoutRandom() * riskPool.length)], discipline: disciplinePool[Math.floor(nextScoutRandom() * disciplinePool.length)], summary: `Melhores sinais em ${strengths}. Potencial ${prospect.potential} confirmado pela equipe.` };
+      scouting.history.unshift({ name: prospect.name, copy: 'Dossiê de scouting concluído', week: state.week });
+      scouting.history = scouting.history.slice(0, 8);
+      addMessage(`Dossiê concluído: ${prospect.name} teve atributos, risco e potencial revelados.`);
+    });
+  }
+  function selectScoutProspect(id) {
+    if (!prospectById(id)) return;
+    state.scouting.selectedProspectId = id;
+    persist(); render();
+  }
+  function filterScouting(filter) {
+    if (!['todos', 'mma', 'boxe'].includes(filter)) return;
+    state.scouting.filter = filter;
+    persist(); render();
+  }
+  function toggleShortlist(id) {
+    const scouting = scoutingCenter();
+    if (!prospectById(id) || state.signedIds.includes(id)) return;
+    scouting.shortlist = scouting.shortlist.includes(id) ? scouting.shortlist.filter((candidate) => candidate !== id) : [...scouting.shortlist, id];
+    persist(); render();
+  }
+  function scoutNegotiate(id) {
+    if (scoutingCenter().reports[id]?.status !== 'complete') { toast('Finalize o dossiê antes de abrir uma negociação.'); return; }
+    beginNegotiation(id);
+  }
+  function hireStaff(id) {
+    const member = staffById(id);
+    const center = staffCenter();
+    if (!member || center.hiredIds.includes(id)) return;
+    const capacity = state.staff + state.academyLevel + 2;
+    if (center.hiredIds.length >= capacity) { toast('Capacidade da equipe atingida. Evolua a academia ou reorganize o núcleo.'); return; }
+    const entryCost = member.signing + member.salary;
+    if (state.cash < entryCost) { toast('Caixa insuficiente para contratação e primeira semana do especialista.'); return; }
+    state.cash -= entryCost;
+    center.hiredIds.push(id);
+    center.history.unshift({ name: member.name, copy: `${member.role} contratado(a)`, week: state.week });
+    center.history = center.history.slice(0, 8);
+    addLedger(`Contratação: ${member.name}`, 'Equipe técnica', -member.signing, 'expense');
+    addLedger(`Folha inicial: ${member.name}`, 'Equipe técnica', -member.salary, 'expense');
+    addMessage(`${member.name} entrou na equipe como ${member.role.toLowerCase()}. Os bônus passam a valer no próximo ciclo.`);
+    persist(); render(); toast('Especialista contratado e integrado à operação.');
+  }
+  function acceptSponsor(id) {
+    const sponsor = sponsorById(id);
+    const sponsorship = sponsorshipCenter();
+    if (!sponsor || activeSponsors().some((contract) => contract.sponsorId === id)) return;
+    if (activeSponsors().length >= 2) { toast('Limite de dois parceiros ativos atingido. Aguarde o fim de um contrato.'); return; }
+    if (!sponsorEligible(sponsor)) { toast('A marca exige mais reputação ou fãs antes de assinar.'); return; }
+    const contract = { sponsorId: id, status: 'ativo', signedWeek: state.week, remainingWeeks: sponsor.duration };
+    sponsorship.active.push(contract);
+    sponsorship.history.unshift({ name: sponsor.name, copy: `Contrato assinado por ${sponsor.duration} semanas`, week: state.week });
+    sponsorship.history = sponsorship.history.slice(0, 8);
+    state.cash += sponsor.upfront;
+    state.fans += Math.round(sponsor.upfront / 120);
+    addLedger(`Assinatura: ${sponsor.name}`, 'Patrocínio da academia', sponsor.upfront, 'income');
+    addMessage(`${sponsor.name} assinou parceria com a academia. A receita semanal e o bônus de evento foram ativados.`);
+    persist(); render(); toast('Patrocínio assinado. Entrada registrada no caixa.');
+  }
+  function settleSponsorWeek() {
+    const sponsorship = sponsorshipCenter();
+    activeSponsors().forEach((contract) => {
+      const sponsor = sponsorById(contract.sponsorId);
+      if (!sponsor) return;
+      state.cash += sponsor.weekly;
+      addLedger(`Parceria semanal: ${sponsor.name}`, 'Patrocínio da academia', sponsor.weekly, 'income');
+      contract.remainingWeeks = Math.max(0, contract.remainingWeeks - 1);
+      if (contract.remainingWeeks === 0) {
+        contract.status = 'encerrado';
+        sponsorship.history.unshift({ name: sponsor.name, copy: 'Contrato encerrado no prazo', week: state.week });
+        sponsorship.history = sponsorship.history.slice(0, 8);
+        addMessage(`O contrato de ${sponsor.name} foi concluído. A vaga de parceiro está livre novamente.`);
+      }
+    });
   }
   function selectEventVenue(id) {
     if (!eventVenues.some((venue) => venue.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
@@ -763,8 +949,9 @@
   }
   function settlePromotedEvent(event, won) {
     if (!event || event.status === 'complete') return;
-    const profit = event.gate + event.media - event.operating;
-    state.cash += event.gate + event.media - event.operating;
+    const sponsorBonus = sponsorEventBonus();
+    const profit = event.gate + event.media + sponsorBonus - event.operating;
+    state.cash += event.gate + event.media + sponsorBonus - event.operating;
     state.fans += Math.round(event.attendance * .08) + (won ? 180 : 70);
     state.reputation += won ? 4 : 1;
     event.status = 'complete';
@@ -774,6 +961,7 @@
     state.eventPlanner.history = state.eventPlanner.history.slice(0, 6);
     addLedger(`Bilheteria: ${event.name}`, `${event.attendance.toLocaleString('pt-BR')} presentes`, event.gate, 'income');
     addLedger(`Mídia: ${event.promotionName}`, 'Direitos locais simulados', event.media, 'income');
+    if (sponsorBonus) addLedger('Ativação de marcas', `${activeSponsors().length} parceiro(s) no evento`, sponsorBonus, 'income');
     addLedger(`Produção: ${event.name}`, 'Equipe, arbitragem e operação', -event.operating, 'expense');
     addMessage(`${event.name} encerrou com ${event.attendance.toLocaleString('pt-BR')} presentes e ${profit >= 0 ? 'resultado positivo' : 'resultado negativo'} de ${money(Math.abs(profit))}.`);
   }
@@ -806,9 +994,9 @@
     const development = ensureDevelopment(fighter);
     if (development.injury) {
       development.injury.weeks -= 1;
-      fighter.conditioning = Math.min(100, (fighter.conditioning || 65) + 5 + state.facilities.recovery * 2);
+      fighter.conditioning = Math.min(100, (fighter.conditioning || 65) + 5 + state.facilities.recovery * 2 + Math.round(staffBonus('recovery')));
       fighter.morale = Math.min(100, (fighter.morale || 65) + 1);
-      development.fatigue = Math.max(0, development.fatigue - 17 - state.facilities.recovery * 3);
+      development.fatigue = Math.max(0, development.fatigue - 17 - state.facilities.recovery * 3 - Math.round(staffBonus('recovery') * 2));
       const cleared = development.injury.weeks <= 0;
       const label = development.injury.label;
       if (cleared) development.injury = null;
@@ -827,23 +1015,23 @@
       const session = campSessions[key];
       const facilityLevel = session.facility ? (state.facilities[session.facility] || 0) : 0;
       const multiplier = 1 + Math.max(0, facilityLevel - 1) * .18;
-      Object.entries(session.gains).forEach(([attribute, gain]) => { gains[attribute] += gain * multiplier; });
+      Object.entries(session.gains).forEach(([attribute, gain]) => { gains[attribute] += gain * multiplier * (1 + staffBonus(attribute) * .08); });
       fatigueDelta += session.fatigue;
       moraleDelta += session.morale || 0;
       campDelta += session.camp;
       if (key === 'sparring') sparringDays += 1;
     });
     const focus = campFocuses[camp.focus] || campFocuses.striking;
-    gains[focus.attribute] += 1 + Math.max(0, state.academyLevel - 1) * .3;
+    gains[focus.attribute] += (1 + Math.max(0, state.academyLevel - 1) * .3) * (1 + staffBonus(focus.attribute) * .08);
     Object.entries(gains).forEach(([attribute, gain]) => {
       development.attributes[attribute] = Math.min(99, Math.round((development.attributes[attribute] + gain) * 10) / 10);
     });
     development.totalSessions += plan.length;
-    development.fatigue = Math.max(0, Math.min(100, Math.round(development.fatigue + fatigueDelta - state.facilities.recovery * 2)));
+    development.fatigue = Math.max(0, Math.min(100, Math.round(development.fatigue + fatigueDelta - state.facilities.recovery * 2 - staffBonus('recovery') * 2)));
     fighter.camp = Math.min(100, (fighter.camp || 20) + campDelta);
     fighter.conditioning = Math.max(45, Math.min(100, (fighter.conditioning || 70) + Math.round(gains.cardio * .7) - Math.round(Math.max(0, fatigueDelta) * .09)));
     fighter.morale = Math.max(40, Math.min(100, (fighter.morale || 70) + moraleDelta + (development.fatigue < 35 ? 1 : 0)));
-    const injuryRisk = Math.max(2, Math.min(36, Math.round(4 + development.fatigue * .22 + sparringDays * 5 - state.facilities.recovery * 3)));
+    const injuryRisk = Math.max(2, Math.min(36, Math.round(4 + development.fatigue * .22 + sparringDays * 5 - state.facilities.recovery * 3 - staffBonus('recovery') * 3)));
     const activeEventStatus = state.eventPlanner?.activeEvent?.status;
     const protectedFightWindow = state.fightBooked || ['planned', 'ready', 'live'].includes(activeEventStatus);
     const injured = !protectedFightWindow && development.fatigue >= 62 && nextCampRandom() * 100 < injuryRisk;
@@ -990,9 +1178,12 @@
     persist(); render();
   }
   function advanceWeek() {
-    const payroll = state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800 + 4500;
+    const specialistPayroll = staffPayroll();
+    const payroll = state.fighters.reduce((sum, fighter) => sum + fighter.salary, 0) + state.staff * 1800 + specialistPayroll + 4500;
     state.cash -= payroll; state.week += 1; state.date = `Semana ${state.week} · 2026`;
     simulateWorldCycle();
+    resolveScoutReports();
+    settleSponsorWeek();
     state.contracts.forEach((contract) => { if (contract.status === 'ativo') contract.remainingWeeks = Math.max(0, (contract.remainingWeeks ?? contract.duration * 52) - 1); });
     const plannedShow = state.eventPlanner?.activeEvent?.status === 'planned';
     const report = applyTrainingWeek();
@@ -1002,7 +1193,7 @@
       fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1));
       if (state.fightBooked || plannedShow) fighter.camp = Math.min(100, (fighter.camp || 20) + 7);
     });
-    addLedger('Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
+    addLedger(specialistPayroll ? 'Folha, especialistas e operação' : 'Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
     const promotedEvent = state.eventPlanner?.activeEvent;
     if (promotedEvent?.status === 'planned' && state.week >= promotedEvent.week) {
       const fighter = state.fighters.find((candidate) => candidate.id === promotedEvent.fighterId);
@@ -1034,6 +1225,13 @@
       if (action === 'onboarding-next') { setDraftFromInputs(); if (state.onboardingStep === 1 && (!state.draft.managerName || !state.draft.academyName)) { toast('Informe seu nome e o nome da academia.'); return; } state.onboardingStep += 1; persist(); render(); }
       if (action === 'onboarding-back') { setDraftFromInputs(); state.onboardingStep -= 1; persist(); render(); }
       if (action === 'hire') hire(button.dataset.id);
+      if (action === 'filter-scouting') filterScouting(button.dataset.filter);
+      if (action === 'select-scout-prospect') selectScoutProspect(button.dataset.id);
+      if (action === 'request-scout-report') requestScoutReport(button.dataset.id);
+      if (action === 'toggle-shortlist') toggleShortlist(button.dataset.id);
+      if (action === 'scout-negotiate') scoutNegotiate(button.dataset.id);
+      if (action === 'hire-staff') hireStaff(button.dataset.id);
+      if (action === 'accept-sponsor') acceptSponsor(button.dataset.id);
       if (action === 'open-negotiation') beginNegotiation(button.dataset.id);
       if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));
       if (action === 'reset-offer') resetOffer();

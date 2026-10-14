@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 6
+# Vale Fight Manager — Fases 1 a 9
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -29,6 +29,14 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - cinco atributos persistentes (striking, grappling, cardio, defesa e QI de luta) que influenciam a simulação tática;
 - fadiga, preparo, risco de lesão, recuperação médica e bloqueio de novos cards enquanto o atleta não está liberado;
 - migração automática dos saves anteriores para a Fase 6.
+- Hub de Prospecção: filtros de mercado, lista curta e dossiês pagos que são resolvidos pelo calendário antes de liberar uma negociação.
+- Equipe técnica: seis especialistas fictícios contratáveis, com assinatura, folha semanal e efeitos reais em treino, recuperação, alcance de marca e inteligência de mercado.
+- Patrocínios autorais: requisitos de fãs e reputação, pagamento de entrada, receita semanal, prazo de contrato e bônus efetivo nos eventos próprios.
+- Migração automática dos saves anteriores para as Fases 7, 8 e 9.
+
+## Roadmap
+
+O plano do MVP tem **13 lotes no total**. As Fases 1–9 estão concluídas nesta versão; os próximos quatro lotes estão descritos em [ROADMAP.md](ROADMAP.md).
 
 ## Como executar
 
@@ -50,7 +58,7 @@ O comando garante a presença dos artefatos essenciais da entrega. Os comportame
 
 ## Limites atuais
 
-Ainda não há animação 2D quadro a quadro, cloud save, áudio, patrocínios, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação tática por turnos; o ranking e os resultados são independentes e construídos apenas com conteúdo fictício.
+Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação tática por turnos; o ranking e os resultados são independentes e construídos apenas com conteúdo fictício.
 
 ## Créditos de asset
 
