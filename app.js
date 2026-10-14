@@ -1,4 +1,4 @@
-/* Vale Fight Manager — Fases 1 a 4
+/* Vale Fight Manager — Fases 1 a 6
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -63,6 +63,62 @@
   function createEventPlannerState() {
     return { venueId: 'vale-arena', promotionId: 'regional', dateOffset: 3, fighterId: null, activeEvent: null, history: [] };
   }
+  function createTrainingCampState() {
+    return {
+      fighterId: null,
+      focus: 'striking',
+      weeklyPlan: ['striking', 'conditioning', 'grappling', 'sparring', 'recovery', 'strategy', 'rest'],
+      seed: 15485863,
+      lastReport: null,
+      history: [],
+    };
+  }
+  const campSessions = {
+    striking: { label: 'Striking técnico', icon: '✦', copy: 'Precisão, combinações e leitura de distância.', gains: { striking: 2, defense: 1 }, fatigue: 9, camp: 6, facility: 'ring' },
+    grappling: { label: 'Grappling & quedas', icon: '◈', copy: 'Controle, transições e defesa de quedas.', gains: { grappling: 2, fightIQ: 1 }, fatigue: 10, camp: 6, facility: 'cage' },
+    conditioning: { label: 'Força & cardio', icon: '↟', copy: 'Ritmo, potência e capacidade de recuperação.', gains: { cardio: 2 }, fatigue: 8, camp: 5, facility: 'conditioning' },
+    sparring: { label: 'Sparring dirigido', icon: '⚡', copy: 'Rounds sob pressão. Alto ganho, maior desgaste.', gains: { fightIQ: 2, defense: 1 }, fatigue: 14, camp: 8, risk: 6 },
+    recovery: { label: 'Recuperação ativa', icon: '♡', copy: 'Mobilidade, fisioterapia e sono orientado.', gains: { cardio: 1 }, fatigue: -15, morale: 2, camp: 2, facility: 'recovery' },
+    strategy: { label: 'Plano de luta', icon: '◎', copy: 'Vídeo, estudo de rival e tomada de decisão.', gains: { fightIQ: 2, defense: 1 }, fatigue: 3, camp: 4 },
+    rest: { label: 'Descanso total', icon: '☾', copy: 'Reduz a fadiga e protege a confiança.', gains: {}, fatigue: -10, morale: 3, camp: 1 },
+  };
+  const campFocuses = {
+    striking: { label: 'Striking', attribute: 'striking', copy: 'Melhora a pressão, o contra-golpe e o dano ofensivo.' },
+    grappling: { label: 'Grappling', attribute: 'grappling', copy: 'Favorece clinch, quedas e controle de ritmo.' },
+    conditioning: { label: 'Condicionamento', attribute: 'cardio', copy: 'Sustenta energia e reduz o impacto da fadiga.' },
+    strategy: { label: 'QI de luta', attribute: 'fightIQ', copy: 'Aprimora decisões, defesa e leitura tática.' },
+  };
+  const campAttributeLabels = { striking: 'Striking', grappling: 'Grappling', cardio: 'Cardio', defense: 'Defesa', fightIQ: 'QI de luta' };
+  function baseDevelopment(fighter) {
+    const rating = Number(fighter.rating) || 62;
+    const isBoxer = fighter.discipline === 'Boxe';
+    return {
+      attributes: {
+        striking: Math.min(90, rating + (isBoxer ? 6 : 2)),
+        grappling: Math.max(38, Math.min(88, rating + (isBoxer ? -14 : 5))),
+        cardio: Math.min(88, rating + 1),
+        defense: Math.min(88, rating - 1),
+        fightIQ: Math.min(88, rating),
+      },
+      fatigue: 18,
+      injury: null,
+      totalSessions: 0,
+    };
+  }
+  function ensureDevelopment(fighter) {
+    if (!fighter) return baseDevelopment({});
+    const fallback = baseDevelopment(fighter);
+    const stored = fighter.development || {};
+    fighter.development = {
+      ...fallback,
+      ...stored,
+      attributes: { ...fallback.attributes, ...(stored.attributes || {}) },
+      fatigue: Number.isFinite(stored.fatigue) ? stored.fatigue : fallback.fatigue,
+      injury: stored.injury && Number.isFinite(stored.injury.weeks) && stored.injury.weeks > 0 ? stored.injury : null,
+      totalSessions: Number.isFinite(stored.totalSessions) ? stored.totalSessions : 0,
+    };
+    return fighter.development;
+  }
   const eventVenues = [
     { id: 'vale-arena', name: 'Arena Vale', city: 'São Paulo', capacity: 4800, rental: 54000, production: 32000, ticket: 96, badge: 'CASA' },
     { id: 'pavilhao-norte', name: 'Pavilhão Norte', city: 'Campinas', capacity: 7600, rental: 98000, production: 51000, ticket: 118, badge: 'REGIONAL' },
@@ -112,7 +168,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 5,
+      schemaVersion: 6,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -143,6 +199,7 @@
       contractHistory: [],
       negotiation: createNegotiationState(),
       eventPlanner: createEventPlannerState(),
+      trainingCamp: createTrainingCampState(),
     };
   }
 
@@ -150,13 +207,16 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 5 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 6 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
         migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
         migrated.negotiation = parsed.negotiation ? { ...createNegotiationState(), ...parsed.negotiation } : createNegotiationState();
         migrated.eventPlanner = parsed.eventPlanner ? { ...createEventPlannerState(), ...parsed.eventPlanner, history: Array.isArray(parsed.eventPlanner.history) ? parsed.eventPlanner.history : [] } : createEventPlannerState();
+        migrated.trainingCamp = parsed.trainingCamp ? { ...createTrainingCampState(), ...parsed.trainingCamp, weeklyPlan: Array.isArray(parsed.trainingCamp.weeklyPlan) && parsed.trainingCamp.weeklyPlan.length === 7 ? parsed.trainingCamp.weeklyPlan : createTrainingCampState().weeklyPlan, history: Array.isArray(parsed.trainingCamp.history) ? parsed.trainingCamp.history : [] } : createTrainingCampState();
+        migrated.fighters = Array.isArray(parsed.fighters) ? parsed.fighters : [];
+        migrated.fighters.forEach((fighter) => ensureDevelopment(fighter));
         return migrated;
       }
     } catch (error) { console.warn('Não foi possível recuperar o save local.', error); }
@@ -258,6 +318,29 @@
   function selectedFighter() {
     return state.fighters.find((fighter) => fighter.id === state.selectedFighterId) || state.fighters[0] || null;
   }
+  function trainingCamp() { return state.trainingCamp || createTrainingCampState(); }
+  function campFighter() {
+    const camp = trainingCamp();
+    return state.fighters.find((fighter) => fighter.id === camp.fighterId) || selectedFighter();
+  }
+  function injuryLabel(fighter) {
+    const injury = ensureDevelopment(fighter).injury;
+    return injury ? `${injury.label} · ${injury.weeks} semana${injury.weeks === 1 ? '' : 's'}` : 'Liberado(a)';
+  }
+  function fighterCanCompete(fighter) { return !ensureDevelopment(fighter).injury; }
+  function effectiveCombatRating(fighter, tacticKey = 'aggressive') {
+    const development = ensureDevelopment(fighter);
+    const attributes = development.attributes;
+    const primary = tacticKey === 'takedown' || tacticKey === 'clinch' ? attributes.grappling : tacticKey === 'defensive' ? attributes.defense : tacticKey === 'conserve' ? attributes.cardio : tacticKey === 'counter' ? Math.round((attributes.striking + attributes.fightIQ) / 2) : attributes.striking;
+    const conditioning = Number(fighter.conditioning) || 70;
+    const morale = Number(fighter.morale) || 70;
+    return Math.max(45, (Number(fighter.rating) || 62) + (primary - 62) * .16 + (attributes.cardio - 62) * .06 + (attributes.fightIQ - 62) * .05 + (conditioning - 70) * .035 + (morale - 70) * .018 - development.fatigue * .075);
+  }
+  function nextCampRandom() {
+    const camp = trainingCamp();
+    camp.seed = (camp.seed * 1664525 + 1013904223) >>> 0;
+    return camp.seed / 4294967296;
+  }
   function divisionKey(division = '') {
     return division.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
   }
@@ -344,7 +427,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 5</strong>Carreira local · eventos próprios, contratos e decisões persistentes</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('training', '✦', 'Camp')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Parte 6</strong>Carreira local · camp semanal, atributos e disponibilidade física</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -387,6 +470,20 @@
     const cageCost = 85000 * state.academyLevel;
     const recoveryCost = 54000 * (state.facilities.recovery + 1);
     return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Estrutura & desenvolvimento</div><h1>Casa dos<br><span class="text-gold">campeões.</span></h1><p class="page-copy">Invista na estrutura para aumentar a qualidade do desenvolvimento. O upgrade desconta dinheiro, permanece salvo e se reflete na semana seguinte.</p></div><button class="button secondary" data-nav="roster">VER ELENCO</button></div><section class="academy-grid"><article class="card academy-stage"><div class="eyebrow">Academia nível ${state.academyLevel}</div><h2>${escapeHTML(state.draft.academyName)}</h2><p class="page-copy">${escapeHTML(state.draft.city)} · foco ${state.draft.focus === 'misto' ? 'MMA e Boxe' : state.draft.focus.toUpperCase()}</p><div class="facility-map"><div class="facility active"><span class="facility-icon">▣</span><strong>Ringue de boxe</strong><small>Nível ${state.facilities.ring} · técnica e sparring</small></div><div class="facility active"><span class="facility-icon">⬡</span><strong>Área de MMA</strong><small>Nível ${state.facilities.cage} · grappling e parede</small></div><div class="facility"><span class="facility-icon">▥</span><strong>Condicionamento</strong><small>Nível ${state.facilities.conditioning} · energia e prevenção</small></div><div class="facility ${state.facilities.recovery ? 'active' : ''}"><span class="facility-icon">♡</span><strong>Recuperação</strong><small>${state.facilities.recovery ? `Nível ${state.facilities.recovery} · moral e saúde` : 'Não construída'}</small></div></div></article><aside class="card upgrade-card"><div class="upgrade-hero"><div class="eyebrow">Melhoria disponível</div><h2>Próximo<br><span class="text-gold">investimento.</span></h2><p class="text-muted">Escolha uma evolução permanente.</p></div><div class="section-body"><div class="action-list"><div class="action-row"><div><strong>Elevar ringue</strong><small>Nível ${state.facilities.ring} → ${state.facilities.ring + 1} · Técnica +5%</small></div><button class="button" data-action="upgrade" data-facility="ring" data-cost="${ringCost}">${money(ringCost)}</button></div><div class="action-row"><div><strong>Elevar área de MMA</strong><small>Nível ${state.facilities.cage} → ${state.facilities.cage + 1} · Grappling +5%</small></div><button class="button" data-action="upgrade" data-facility="cage" data-cost="${cageCost}">${money(cageCost)}</button></div><div class="action-row"><div><strong>${state.facilities.recovery ? 'Elevar recuperação' : 'Construir recuperação'}</strong><small>Moral +3 · risco de lesão reduzido</small></div><button class="button" data-action="upgrade" data-facility="recovery" data-cost="${recoveryCost}">${money(recoveryCost)}</button></div></div></div><div class="upgrade-footer"><div><div class="overline">Caixa após próximo upgrade</div><div class="upgrade-cost">${money(Math.max(0, state.cash - Math.min(ringCost, cageCost, recoveryCost)))}</div></div><span class="pill ${state.cash < Math.min(ringCost, cageCost, recoveryCost) ? 'locked' : ''}">${state.cash < Math.min(ringCost, cageCost, recoveryCost) ? 'CAIXA INSUFICIENTE' : 'DISPONÍVEL'}</span></div></aside></section></section>`;
+  }
+  function trainingView() {
+    const camp = trainingCamp();
+    const fighter = campFighter();
+    if (!fighter) return `<section class="content"><div class="page-heading"><div><div class="eyebrow">Centro de treinamento</div><h1>Primeiro<br><span class="text-gold">atleta.</span></h1><p class="page-copy">Assine um atleta para abrir uma rotina semanal, desenvolver atributos e preparar a próxima Fight Night.</p></div><button class="button" data-nav="roster">ABRIR MERCADO</button></div></section>`;
+    const development = ensureDevelopment(fighter);
+    const focus = campFocuses[camp.focus] || campFocuses.striking;
+    const plan = camp.weeklyPlan.map((key) => campSessions[key] ? key : 'rest');
+    const sparringDays = plan.filter((key) => key === 'sparring').length;
+    const risk = Math.max(2, Math.min(36, Math.round(4 + development.fatigue * .22 + sparringDays * 5 - state.facilities.recovery * 3)));
+    const readyForFight = fighterCanCompete(fighter);
+    const report = camp.lastReport;
+    const reportMarkup = report ? `<div class="camp-report"><div><span class="eyebrow">Última semana aplicada · S${report.week}</span><strong>${escapeHTML(report.title)}</strong><p>${escapeHTML(report.copy)}</p></div><span class="${report.injured ? 'report-alert' : 'report-good'}">${report.injured ? 'ATENÇÃO' : '+ EVOLUÇÃO'}</span></div>` : `<div class="camp-report empty"><div><span class="eyebrow">Próxima resolução</span><strong>A rotina será aplicada ao avançar a semana.</strong><p>As escolhas abaixo mudam preparo, atributos e disponibilidade do atleta.</p></div></div>`;
+    return `<section class="content training-page"><div class="page-heading"><div><div class="eyebrow">Centro de treinamento · preparação semanal</div><h1>Construa o<br><span class="text-gold">melhor camp.</span></h1><p class="page-copy">Cada dia tem efeito real: os atributos alimentam a simulação da Fight Night, a fadiga limita o desempenho e uma lesão impede novos cards até a recuperação.</p></div><button class="button" data-action="advance-week">APLICAR SEMANA</button></div><section class="training-hero card"><div class="training-hero-backdrop"></div><div class="training-hero-main">${fighterAvatar(fighter, 'camp-portrait')}<div><div class="eyebrow">Atleta no camp</div><h2>${escapeHTML(fighter.name)}</h2><p>${fighterIdentity(fighter)} · ${fighter.discipline} · ${fighter.division} · ${fighter.rating} OVR</p><div class="camp-availability ${readyForFight ? 'ready' : 'injured'}"><span>${readyForFight ? '●' : '!'}</span>${readyForFight ? 'DISPONÍVEL PARA LUTAR' : escapeHTML(injuryLabel(fighter).toUpperCase())}</div></div></div><div class="training-hero-state"><div><small>FADIGA</small><strong>${development.fatigue}<em>/100</em></strong></div><div><small>PREPARO</small><strong>${fighter.camp || 0}<em>%</em></strong></div><div><small>RISCO SEMANAL</small><strong class="${risk >= 22 ? 'text-red' : 'text-green'}">${risk}%</strong></div></div></section><section class="training-layout"><article class="card camp-plan-card"><div class="card-title"><span>Plano da semana</span><small>edite antes de avançar o calendário</small></div><div class="camp-body"><div class="camp-athlete-row">${state.fighters.map((candidate) => `<button class="camp-athlete-choice ${candidate.id === fighter.id ? 'selected' : ''}" data-action="select-camp-fighter" data-id="${candidate.id}">${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate, true)} · ${candidate.discipline}</small></span>${fighterCanCompete(candidate) ? '<b>PRONTO</b>' : '<b class="text-red">LESÃO</b>'}</button>`).join('')}</div><div class="focus-row"><span>Foco do camp</span>${Object.entries(campFocuses).map(([key, option]) => `<button class="focus-choice ${camp.focus === key ? 'selected' : ''}" data-action="select-camp-focus" data-focus="${key}">${escapeHTML(option.label)}</button>`).join('')}</div><p class="focus-copy"><strong>${escapeHTML(focus.label)}:</strong> ${escapeHTML(focus.copy)}</p><div class="camp-calendar">${plan.map((key, index) => { const session = campSessions[key]; return `<div class="camp-day"><div><span>DIA ${index + 1}</span><strong>${escapeHTML(session.label)}</strong><small>${escapeHTML(session.copy)}</small></div><button class="session-cycle" data-action="cycle-camp-session" data-day="${index}" aria-label="Alterar atividade do dia ${index + 1}">${session.icon}</button></div>`; }).join('')}</div><p class="camp-hint">Clique no ícone de cada dia para alternar a atividade. Sparring acelera o preparo, mas eleva a fadiga e o risco.</p></div></article><aside class="training-side"><article class="card attribute-card"><div class="card-title"><span>Perfil competitivo</span><small>impacta a Fight Night</small></div><div class="attribute-list">${Object.entries(development.attributes).map(([key, value]) => progress(campAttributeLabels[key], Math.round(value), key === focus.attribute ? 'background:linear-gradient(90deg,#ea293d,#ffc85d)' : '')).join('')}</div><div class="attribute-footer"><span>Impacto tático atual</span><strong>${Math.round(effectiveCombatRating(fighter, camp.focus))} FORÇA</strong></div></article>${reportMarkup}<article class="card camp-guidance"><div class="card-title"><span>Leitura da equipe</span><small>semana ${state.week}</small></div><div class="section-body"><ul class="feature-list"><li>${state.facilities.recovery ? `Recuperação nível ${state.facilities.recovery} reduz o risco do camp.` : 'Construa Recuperação na Academia para reduzir o risco de lesão.'}</li><li>${sparringDays ? `${sparringDays} sessão(ões) de sparring configurada(s): ganho alto, carga maior.` : 'Sem sparring: menor ganho de preparo, mas rotina mais segura.'}</li><li>${readyForFight ? 'O atleta está elegível para aceitar uma luta ou liderar um evento.' : 'Atleta em recuperação: novos cards e lutas ficam bloqueados até a liberação.'}</li></ul></div></article></aside></section></section>`;
   }
   function rankingTabs() {
     const discipline = state.world.selectedDiscipline;
@@ -506,6 +603,7 @@
     if (state.view === 'fight') view = fightView();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
+    if (state.view === 'training') view = trainingView();
     if (state.view === 'finance') view = financeView();
     app.innerHTML = shell(view);
     bindEvents();
@@ -518,6 +616,7 @@
     if (!state.draft.managerName || !state.draft.academyName) { toast('Preencha seu nome e o nome da academia antes de começar.'); state.onboardingStep = 1; render(); return; }
     const profile = difficultyProfiles[state.draft.difficulty];
     const starter = { ...starterFighters[state.draft.focus] };
+    ensureDevelopment(starter);
     if (state.draft.background === 'Ex-treinador') starter.camp += 8;
     if (state.draft.background === 'Ex-atleta') starter.morale += 7;
     state.cash = profile.cash;
@@ -528,6 +627,7 @@
     state.contracts = [contractFor(starter, { signing: 0, salary: starter.salary, duration: 2, revenueShare: 12, imageRights: 55 })];
     state.contractHistory = [{ fighter: starter.name, status: 'fundador', week: state.week, terms: `Contrato inicial · ${money(starter.salary)}/semana` }];
     state.eventPlanner = { ...createEventPlannerState(), fighterId: starter.id };
+    state.trainingCamp = { ...createTrainingCampState(), fighterId: starter.id };
     state.ledger = [{ title: 'Capital de abertura', category: 'Início de carreira', amount: state.cash, week: 'S1', kind: 'income' }, { title: 'Licenças e abertura', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' }];
     state.cash -= 18000;
     state.complete = true;
@@ -549,6 +649,7 @@
     if (state.cash < price) { toast('Caixa insuficiente para assinatura e primeira semana de salário.'); return; }
     state.cash -= price;
     const fighter = { ...prospect, signing: negotiatedOffer.signing, salary: negotiatedOffer.salary, status: 'ativo', conditioning: 68, morale: 68, camp: 18 };
+    ensureDevelopment(fighter);
     state.fighters.push(fighter); state.signedIds.push(id); state.selectedFighterId = id;
     const contract = contractFor(fighter, negotiatedOffer);
     state.contracts.push(contract);
@@ -622,6 +723,7 @@
     if (state.fightBooked && state.fight.status !== 'complete') { toast('Finalize a luta já agendada antes de promover um novo show.'); return; }
     const fighter = eventFighter();
     if (!fighter) { toast('Você precisa de um atleta ativo para confirmar uma luta principal.'); return; }
+    if (!fighterCanCompete(fighter)) { toast(`${fighter.name} está em recuperação. Aguarde a liberação médica antes de confirmar o show.`); return; }
     const venue = selectedVenue();
     const promotion = selectedPromotion();
     const reservation = venue.rental + promotion.cost;
@@ -675,6 +777,91 @@
     addLedger(`Produção: ${event.name}`, 'Equipe, arbitragem e operação', -event.operating, 'expense');
     addMessage(`${event.name} encerrou com ${event.attendance.toLocaleString('pt-BR')} presentes e ${profit >= 0 ? 'resultado positivo' : 'resultado negativo'} de ${money(Math.abs(profit))}.`);
   }
+  function selectCampFighter(id) {
+    const fighter = state.fighters.find((candidate) => candidate.id === id);
+    if (!fighter) return;
+    state.trainingCamp.fighterId = fighter.id;
+    state.selectedFighterId = fighter.id;
+    ensureDevelopment(fighter);
+    persist(); render();
+  }
+  function selectCampFocus(focus) {
+    if (!campFocuses[focus]) return;
+    state.trainingCamp.focus = focus;
+    persist(); render();
+  }
+  function cycleCampSession(day) {
+    const camp = trainingCamp();
+    if (!Number.isInteger(day) || day < 0 || day >= camp.weeklyPlan.length) return;
+    const keys = Object.keys(campSessions);
+    const index = Math.max(0, keys.indexOf(camp.weeklyPlan[day]));
+    camp.weeklyPlan[day] = keys[(index + 1) % keys.length];
+    persist(); render();
+  }
+  function applyTrainingWeek() {
+    const camp = trainingCamp();
+    const fighter = campFighter();
+    if (!fighter) return null;
+    camp.fighterId = fighter.id;
+    const development = ensureDevelopment(fighter);
+    if (development.injury) {
+      development.injury.weeks -= 1;
+      fighter.conditioning = Math.min(100, (fighter.conditioning || 65) + 5 + state.facilities.recovery * 2);
+      fighter.morale = Math.min(100, (fighter.morale || 65) + 1);
+      development.fatigue = Math.max(0, development.fatigue - 17 - state.facilities.recovery * 3);
+      const cleared = development.injury.weeks <= 0;
+      const label = development.injury.label;
+      if (cleared) development.injury = null;
+      camp.lastReport = { week: state.week, title: cleared ? 'Atleta liberado pelo departamento médico' : 'Recuperação em andamento', copy: cleared ? `${fighter.name} voltou a ficar disponível para lutar após ${label.toLowerCase()}.` : `${fighter.name} segue em recuperação por ${label.toLowerCase()}.`, injured: !cleared };
+      camp.history.unshift({ ...camp.lastReport }); camp.history = camp.history.slice(0, 5);
+      addMessage(camp.lastReport.copy);
+      return camp.lastReport;
+    }
+    const plan = camp.weeklyPlan.map((key) => campSessions[key] ? key : 'rest');
+    const gains = { striking: 0, grappling: 0, cardio: 0, defense: 0, fightIQ: 0 };
+    let fatigueDelta = 0;
+    let moraleDelta = 0;
+    let campDelta = 0;
+    let sparringDays = 0;
+    plan.forEach((key) => {
+      const session = campSessions[key];
+      const facilityLevel = session.facility ? (state.facilities[session.facility] || 0) : 0;
+      const multiplier = 1 + Math.max(0, facilityLevel - 1) * .18;
+      Object.entries(session.gains).forEach(([attribute, gain]) => { gains[attribute] += gain * multiplier; });
+      fatigueDelta += session.fatigue;
+      moraleDelta += session.morale || 0;
+      campDelta += session.camp;
+      if (key === 'sparring') sparringDays += 1;
+    });
+    const focus = campFocuses[camp.focus] || campFocuses.striking;
+    gains[focus.attribute] += 1 + Math.max(0, state.academyLevel - 1) * .3;
+    Object.entries(gains).forEach(([attribute, gain]) => {
+      development.attributes[attribute] = Math.min(99, Math.round((development.attributes[attribute] + gain) * 10) / 10);
+    });
+    development.totalSessions += plan.length;
+    development.fatigue = Math.max(0, Math.min(100, Math.round(development.fatigue + fatigueDelta - state.facilities.recovery * 2)));
+    fighter.camp = Math.min(100, (fighter.camp || 20) + campDelta);
+    fighter.conditioning = Math.max(45, Math.min(100, (fighter.conditioning || 70) + Math.round(gains.cardio * .7) - Math.round(Math.max(0, fatigueDelta) * .09)));
+    fighter.morale = Math.max(40, Math.min(100, (fighter.morale || 70) + moraleDelta + (development.fatigue < 35 ? 1 : 0)));
+    const injuryRisk = Math.max(2, Math.min(36, Math.round(4 + development.fatigue * .22 + sparringDays * 5 - state.facilities.recovery * 3)));
+    const activeEventStatus = state.eventPlanner?.activeEvent?.status;
+    const protectedFightWindow = state.fightBooked || ['planned', 'ready', 'live'].includes(activeEventStatus);
+    const injured = !protectedFightWindow && development.fatigue >= 62 && nextCampRandom() * 100 < injuryRisk;
+    const growth = Object.entries(gains).filter(([, gain]) => gain > 0).map(([attribute, gain]) => `+${Math.round(gain)} ${campAttributeLabels[attribute]}`).join(' · ');
+    if (injured) {
+      const weeks = nextCampRandom() > .67 ? 2 : 1;
+      const label = development.fatigue >= 82 ? 'sobrecarga muscular' : 'distensão leve';
+      development.injury = { label, weeks };
+      fighter.conditioning = Math.max(45, fighter.conditioning - 10);
+      fighter.morale = Math.max(40, fighter.morale - 3);
+      camp.lastReport = { week: state.week, title: 'Carga interrompida pela equipe médica', copy: `${growth}. ${fighter.name} sofreu ${label} e ficará fora por ${weeks} semana${weeks === 1 ? '' : 's'}.`, injured: true };
+    } else {
+      camp.lastReport = { week: state.week, title: protectedFightWindow ? 'Camp concluído com carga controlada' : 'Camp concluído com evolução registrada', copy: `${growth}. Fadiga em ${development.fatigue}/100 e preparo em ${fighter.camp}%.`, injured: false };
+    }
+    camp.history.unshift({ ...camp.lastReport }); camp.history = camp.history.slice(0, 5);
+    addMessage(camp.lastReport.copy);
+    return camp.lastReport;
+  }
   function upgrade(facility, cost) {
     if (state.cash < cost) { toast('Caixa insuficiente para este investimento.'); return; }
     state.cash -= cost; state.facilities[facility] += 1; state.academyLevel = Math.max(state.academyLevel, state.facilities[facility]);
@@ -699,6 +886,7 @@
   }
   function bookFight() {
     const fighter = selectedFighter(); if (!fighter) { toast('Você precisa de um atleta contratado para aceitar a luta.'); return; }
+    if (!fighterCanCompete(fighter)) { toast(`${fighter.name} está em recuperação. A equipe médica ainda não liberou uma nova luta.`); return; }
     if (state.fightBooked && state.fight?.status !== 'complete') { state.view = 'fight'; persist(); render(); return; }
     const opponent = regionalOpponent(fighter);
     state.fightBooked = true;
@@ -718,6 +906,7 @@
   }
   function startFight() {
     if (!state.fightBooked || state.fight.status !== 'ready') return;
+    if (!fighterCanCompete(selectedFighter())) { toast('O atleta ainda está em recuperação e não pode iniciar o combate.'); return; }
     const event = state.eventPlanner?.activeEvent;
     if (event?.id === state.fight.eventId) event.status = 'live';
     state.fight.status = 'active';
@@ -769,8 +958,8 @@
     const rivalKey = opponentTactic(fight);
     const rival = fightTactics[rivalKey];
     const disciplineBonus = fighter.discipline === 'MMA' && (key === 'clinch' || key === 'takedown') ? 1.15 : fighter.discipline === 'Boxe' && (key === 'counter' || key === 'aggressive') ? 1.12 : 1;
-    const playerPower = (fighter.rating || 62) / 9;
-    const opponentPower = (fight.opponent.rating || 64) / 9;
+    const playerPower = effectiveCombatRating(fighter, key) / 9;
+    const opponentPower = effectiveCombatRating(fight.opponent, rivalKey) / 9;
     let playerDamage = tacticDamage(playerPower, tactic.offense * disciplineBonus / rival.guard, fight.playerStamina, nextFightRandom());
     let opponentDamage = tacticDamage(opponentPower, rival.offense / tactic.guard, fight.opponentStamina, nextFightRandom());
     if (key === 'conserve') { fight.playerStamina = Math.min(100, fight.playerStamina + 14); playerDamage = Math.max(1, Math.round(playerDamage * .55)); }
@@ -806,7 +995,13 @@
     simulateWorldCycle();
     state.contracts.forEach((contract) => { if (contract.status === 'ativo') contract.remainingWeeks = Math.max(0, (contract.remainingWeeks ?? contract.duration * 52) - 1); });
     const plannedShow = state.eventPlanner?.activeEvent?.status === 'planned';
-    state.fighters.forEach((fighter) => { fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked || plannedShow ? 2 : -1))); fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1)); if (state.fightBooked || plannedShow) fighter.camp = Math.min(100, (fighter.camp || 20) + 7); });
+    const report = applyTrainingWeek();
+    const campFighterId = campFighter()?.id;
+    state.fighters.filter((fighter) => fighter.id !== campFighterId).forEach((fighter) => {
+      fighter.conditioning = Math.max(50, Math.min(100, (fighter.conditioning || 70) + (state.fightBooked || plannedShow ? 2 : -1)));
+      fighter.morale = Math.max(45, Math.min(100, (fighter.morale || 70) + 1));
+      if (state.fightBooked || plannedShow) fighter.camp = Math.min(100, (fighter.camp || 20) + 7);
+    });
     addLedger('Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
     const promotedEvent = state.eventPlanner?.activeEvent;
     if (promotedEvent?.status === 'planned' && state.week >= promotedEvent.week) {
@@ -823,7 +1018,7 @@
       state.fight.status = 'ready';
       addMessage(`A preparação terminou. ${selectedFighter().name} está pronto(a) para enfrentar ${state.fight.opponent.name} no Vale Regional 01.`);
       toast('Noite de luta liberada. Entre no evento para orientar o combate.');
-    } else { addMessage(`Semana ${state.week} concluída. Folha e manutenção foram liquidadas.`); toast(`Semana ${state.week} avançada. Custos operacionais aplicados.`); }
+    } else { addMessage(`Semana ${state.week} concluída. Folha e manutenção foram liquidadas.`); toast(report?.injured ? 'Semana avançada: a equipe médica assumiu o caso.' : `Semana ${state.week} avançada. Camp e custos operacionais aplicados.`); }
     persist(); render();
   }
   function incrementWin(record) { const [wins, losses, draws] = record.split('-').map(Number); return `${wins + 1}-${losses}-${draws}`; }
@@ -850,6 +1045,9 @@
       if (action === 'plan-event') planEvent();
       if (action === 'open-event-fight') { state.view = 'fight'; persist(); render(); }
       if (action === 'select-fighter') { state.selectedFighterId = button.dataset.id; persist(); if (button.dataset.navAfter) state.view = button.dataset.navAfter; render(); }
+      if (action === 'select-camp-fighter') selectCampFighter(button.dataset.id);
+      if (action === 'select-camp-focus') selectCampFocus(button.dataset.focus);
+      if (action === 'cycle-camp-session') cycleCampSession(Number(button.dataset.day));
       if (action === 'upgrade') upgrade(button.dataset.facility, Number(button.dataset.cost));
       if (action === 'train') train();
       if (action === 'media') media();

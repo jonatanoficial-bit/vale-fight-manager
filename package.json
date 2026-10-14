@@ -2,7 +2,7 @@
   "name": "vale-fight-manager",
   "version": "0.1.0",
   "private": true,
-  "description": "Vale Fight Manager — Fases 1 a 5",
+  "description": "Vale Fight Manager — Fases 1 a 6",
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "verify": "node scripts/verify.mjs",

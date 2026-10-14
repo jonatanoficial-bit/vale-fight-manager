@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 5
+# Vale Fight Manager — Fases 1 a 6
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -25,6 +25,10 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - reserva, marketing, card principal, preparação no calendário e transição direta para a Fight Night;
 - liquidação persistente de bilheteria, mídia, produção, público, fãs e reputação após a luta principal;
 - migração automática dos saves anteriores para a Fase 5.
+- Centro de Treinamento: atleta selecionável, foco de camp e calendário semanal editável antes de cada avanço;
+- cinco atributos persistentes (striking, grappling, cardio, defesa e QI de luta) que influenciam a simulação tática;
+- fadiga, preparo, risco de lesão, recuperação médica e bloqueio de novos cards enquanto o atleta não está liberado;
+- migração automática dos saves anteriores para a Fase 6.
 
 ## Como executar
 
