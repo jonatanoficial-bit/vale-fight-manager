@@ -16,10 +16,12 @@ O planejamento-base do MVP está organizado em **13 lotes**. Cada lote deve ampl
 10. Competições, convites, elegibilidade por ranking, inscrição, Fight Night e premiação persistente.
 11. Mundo vivo ampliado: inbox estratégico, rivalidades, calendário e consequências de mercado.
 
-## Próximos lotes
+12. Fight Engine avançado: transmissão de arena, tokens em movimento, barras de saúde e energia, automação por round, corner nos intervalos, toalha, finalizações e scorecards.
+13. Polimento de lançamento: três slots de save, autosave, PWA offline, acabamento responsivo, redução de movimento e QA de fluxos essenciais.
 
-12. Fight Engine avançado: apresentação expandida, corner, scorecards e feedback pós-luta.
-13. Polimento de lançamento: slots de save, PWA offline, acessibilidade, performance e QA de campanha completa.
+## Pós-MVP
+
+As melhorias depois do lote 13 — licenciamento de marcas, cloud save, áudio, IA de torcida, novos continentes e combate 2D mais profundo — estão priorizadas em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Regra de evolução
 

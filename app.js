@@ -1,9 +1,11 @@
-/* Vale Fight Manager — Fases 1 a 11
+/* Vale Fight Manager — Fases 1 a 13
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
 
   const STORAGE_KEY = 'vale-fight-manager-career-v1';
+  const SAVE_SLOT_STORAGE_KEY = 'vale-fight-manager-save-slots-v1';
+  let fightAutomationTimer = null;
   const app = document.querySelector('#app');
   const toastRegion = document.querySelector('#toast-region');
   const difficultyProfiles = {
@@ -24,7 +26,7 @@
   };
 
   const countries = {
-    'Alemanha': 'DE', 'Argentina': 'AR', 'Austrália': 'AU', 'Brasil': 'BR', 'Canadá': 'CA', 'Chile': 'CL', 'China': 'CN', 'Coreia do Sul': 'KR', 'Dinamarca': 'DK', 'Egito': 'EG', 'Espanha': 'ES', 'EUA': 'US', 'França': 'FR', 'Gana': 'GH', 'Holanda': 'NL', 'Índia': 'IN', 'Irlanda': 'IE', 'Israel': 'IL', 'Itália': 'IT', 'Japão': 'JP', 'Mali': 'ML', 'Marrocos': 'MA', 'México': 'MX', 'Nigéria': 'NG', 'Paquistão': 'PK', 'Polônia': 'PL', 'Portugal': 'PT', 'Reino Unido': 'GB', 'República Tcheca': 'CZ', 'Rússia': 'RU', 'Suécia': 'SE', 'Tunísia': 'TN',
+    'Alemanha': 'DE', 'Argentina': 'AR', 'Austrália': 'AU', 'Brasil': 'BR', 'Canadá': 'CA', 'Chile': 'CL', 'China': 'CN', 'Coreia do Sul': 'KR', 'Dinamarca': 'DK', 'Egito': 'EG', 'Emirados Árabes Unidos': 'AE', 'Espanha': 'ES', 'EUA': 'US', 'França': 'FR', 'Gana': 'GH', 'Holanda': 'NL', 'Índia': 'IN', 'Irlanda': 'IE', 'Israel': 'IL', 'Itália': 'IT', 'Japão': 'JP', 'Mali': 'ML', 'Marrocos': 'MA', 'México': 'MX', 'Nigéria': 'NG', 'Paquistão': 'PK', 'Polônia': 'PL', 'Portugal': 'PT', 'Reino Unido': 'GB', 'República Tcheca': 'CZ', 'Rússia': 'RU', 'Suécia': 'SE', 'Tunísia': 'TN',
   };
   const avatarProfiles = [
     { skin: '#7f4f38', hair: '#17100e', shirt: '#bf2534', accent: '#f2bd62' },
@@ -55,7 +57,7 @@
   };
 
   function createFightState() {
-    return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', result: null, seed: 94117 };
+    return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, exchangesPerRound: 5, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', cornerStrategy: 'defensive', roundScores: [], scorecards: null, animationTick: 0, intervalNote: null, result: null, seed: 94117 };
   }
   function createNegotiationState() {
     return { prospectId: null, status: 'idle', offer: null, seed: 371951, attempts: 0, result: null };
@@ -184,6 +186,13 @@
     { id: 'contender-series', tier: 'SÉRIE CONTENDER', name: 'Apex Contender Series', city: 'Rio de Janeiro', icon: '◈', minRating: 66, minReputation: 26, minPoints: 70, entryFee: 12000, prize: 78000, participation: 18000, reputationGain: 8, fansGain: 980, pointsGain: 145, delay: 3, description: 'Um card televisionado que aproxima o atleta do ranking mundial.', accent: 'red' },
     { id: 'global-invitational', tier: 'CONVITE INTERNACIONAL', name: 'Meridian Invitational', city: 'Lisboa', icon: '✦', minRating: 71, minReputation: 40, minPoints: 175, entryFee: 24000, prize: 165000, participation: 38000, reputationGain: 13, fansGain: 2100, pointsGain: 255, delay: 4, description: 'A rota internacional exige nome, números e uma reputação que sustente a pressão.', accent: 'blue' },
   ];
+  const globalCircuitCatalog = [
+    { id: 'vale-rising', name: 'VALE Rising Cup', discipline: 'MMA', city: 'São Paulo', country: 'Brasil', mark: 'VR', tier: 'EMERGENTE', points: 62, x: 31, y: 66, accent: 'gold' },
+    { id: 'apex-league', name: 'Apex Combat League', discipline: 'MMA', city: 'Las Vegas', country: 'EUA', mark: 'AC', tier: 'PREMIUM', points: 145, x: 23, y: 39, accent: 'red' },
+    { id: 'meridian-boxing', name: 'Meridian Boxing Series', discipline: 'Boxe', city: 'Lisboa', country: 'Portugal', mark: 'MB', tier: 'GLOBAL', points: 255, x: 50, y: 37, accent: 'blue' },
+    { id: 'pacific-crown', name: 'Pacific Crown', discipline: 'MMA', city: 'Tóquio', country: 'Japão', mark: 'PC', tier: 'MAJOR', points: 210, x: 83, y: 42, accent: 'green' },
+    { id: 'desert-strike', name: 'Desert Strike Championship', discipline: 'Boxe', city: 'Dubai', country: 'Emirados Árabes Unidos', mark: 'DS', tier: 'MAJOR', points: 195, x: 63, y: 49, accent: 'gold' },
+  ];
   const worldBriefingCatalog = [
     { id: 'opening-brief', week: 1, category: 'CONSELHO', sender: 'Diretoria VALE', title: 'O mercado está olhando para você.', copy: 'A primeira impressão da academia será formada antes do primeiro cinturão. Escolha como a organização se apresenta ao circuito.', choices: { press: { label: 'ABRIR PORTAS À IMPRENSA', copy: 'Gera atenção imediata e aumenta a pressão.', fans: 170, reputation: 2, rivalry: 4 }, quiet: { label: 'TRABALHAR NOS BASTIDORES', copy: 'Preserva caixa e protege o atleta do ruído.', cash: 3500, morale: 2 } } },
     { id: 'sokolov-callout', week: 2, category: 'RIVALIDADE', sender: 'Viktor Sokolov', rivalId: 'sokolov', title: '“O projeto VALE ainda não provou nada.”', copy: 'Sokolov citou sua academia em uma entrevista após vencer na Arena Solaris. O público já espera uma resposta.', choices: { answer: { label: 'RESPONDER AO DESAFIO', copy: 'Aumenta a rivalidade e a audiência potencial.', fans: 240, reputation: 2, rivalry: 24 }, ignore: { label: 'DEIXAR O CAMP FALAR', copy: 'Protege o foco e evita alimentar a narrativa.', morale: 3, rivalry: -6 } } },
@@ -198,9 +207,9 @@
       watchedEventId: 'apex-32',
       playerRanking: { fighterId: null, points: 20, position: null, lastChange: 0 },
       events: [
-        { id: 'apex-32', name: 'Circuito Apex 32', discipline: 'MMA', week: 2, date: 'Semana 2', venue: 'Arena Solaris', main: 'Aiden Brooks × Kaito Nakamura', status: 'agendado' },
-        { id: 'meridian-17', name: 'Liga Meridian 17', discipline: 'Boxe', week: 3, date: 'Semana 3', venue: 'Pavilhão Norte', main: 'Andrés Rojas × Kieran Price', status: 'agendado' },
-        { id: 'apex-33', name: 'Circuito Apex 33', discipline: 'MMA', week: 4, date: 'Semana 4', venue: 'Domo Aurora', main: 'Asha Rahman × Júlia Pinheiro', status: 'agendado' },
+        { id: 'apex-32', circuitId: 'apex-league', name: 'Apex Combat League 32', discipline: 'MMA', week: 2, date: 'Semana 2', venue: 'Arena Solaris · Las Vegas', main: 'Aiden Brooks × Kaito Nakamura', status: 'agendado' },
+        { id: 'meridian-17', circuitId: 'meridian-boxing', name: 'Meridian Boxing Series 17', discipline: 'Boxe', week: 3, date: 'Semana 3', venue: 'Pavilhão Norte · Lisboa', main: 'Andrés Rojas × Kieran Price', status: 'agendado' },
+        { id: 'apex-33', circuitId: 'pacific-crown', name: 'Pacific Crown 33', discipline: 'MMA', week: 4, date: 'Semana 4', venue: 'Domo Aurora · Tóquio', main: 'Asha Rahman × Júlia Pinheiro', status: 'agendado' },
       ],
       results: [],
       inbox: [structuredClone(worldBriefingCatalog[0])],
@@ -210,7 +219,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 11,
+      schemaVersion: 13,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -253,7 +262,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 11 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 13 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
         migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
@@ -282,6 +291,9 @@
   }
   function money(value) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  }
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
   function escapeHTML(value) {
     return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
@@ -343,6 +355,18 @@
     if (competition) globalEvents.push({ id: competition.id, week: competition.week, type: competition.tier, title: competition.name, detail: `${competition.city} · ${competition.fighterName} × ${competition.opponent.name}`, status: competition.status });
     if (promoted && ['planned', 'ready', 'live'].includes(promoted.status)) globalEvents.push({ id: promoted.id, week: promoted.week, type: 'VALE EVENT', title: promoted.name, detail: `${promoted.venueName} · ${promoted.fighterName} × ${promoted.opponent.name}`, status: promoted.status });
     return globalEvents.sort((first, second) => first.week - second.week).slice(0, 7);
+  }
+  function circuitById(id) { return globalCircuitCatalog.find((circuit) => circuit.id === id); }
+  function globalCircuitStandings() {
+    const champions = ['Dante Kwan', 'Aiden Brooks', 'Samuel Voss', 'Riku Tanaka', 'Nadia Fares'];
+    return globalCircuitCatalog.map((circuit, index) => ({ ...circuit, champion: champions[index], score: 980 - index * 86 + state.world.cycle * 4 })).sort((first, second) => second.score - first.score);
+  }
+  function worldMapPanel() {
+    const active = activeCompetition();
+    const playerCircuit = active ? { name: active.name, city: active.city, mark: 'V', x: active.city === 'Lisboa' ? 50 : 31, y: active.city === 'Lisboa' ? 37 : 66, accent: 'player' } : null;
+    const markers = [...globalCircuitCatalog, ...(playerCircuit ? [playerCircuit] : [])];
+    const standings = globalCircuitStandings();
+    return `<section class="world-map-section card"><div class="world-map-heading"><div><span class="eyebrow">GLOBAL CIRCUIT NETWORK</span><h2>O palco é <span class="text-gold">o planeta.</span></h2><p>Circuitos autorais conectam cidades, ranking e oportunidades. Selos oficiais podem ser integrados quando houver licenças de marca.</p></div><div class="world-map-live"><span></span>REDE AO VIVO · S${state.week}</div></div><div class="world-map-canvas" role="img" aria-label="Mapa mundial dos circuitos de competição"><svg viewBox="0 0 1000 430" aria-hidden="true"><path d="M75 112l74-48 78 19 21 43-34 41-54-5-29 42-59-18-19-38zM245 220l56 23 18 71-26 88-47-13-22-81zM430 96l86-36 116 18 31 56-70 30-20 67-68-14-45-53zM560 249l83-14 67 45-32 103-79 3-44-73zM746 96l119 15 75 43-42 50-88-15-55 35-49-49zM807 277l78 17 23 60-66 19-49-43z" /></svg><div class="world-map-graticule"></div>${markers.map((circuit) => `<span class="world-map-node ${circuit.accent || 'gold'}" style="--x:${circuit.x};--y:${circuit.y}" aria-label="${escapeHTML(circuit.name)}, ${escapeHTML(circuit.city)}"><b>${escapeHTML(circuit.mark)}</b><small>${escapeHTML(circuit.city)}</small></span>`).join('')}</div><div class="world-circuit-strip">${standings.map((circuit, index) => `<article class="world-circuit-row"><span class="circuit-rank">${index + 1}</span><span class="circuit-mark ${circuit.accent}">${escapeHTML(circuit.mark)}</span><div><strong>${escapeHTML(circuit.name)}</strong><small>${escapeHTML(circuit.city)} · campeão ${escapeHTML(circuit.champion)}</small></div><b>${circuit.score}</b></article>`).join('')}</div></section>`;
   }
   function stageWorldBriefing() {
     const inbox = Array.isArray(state.world.inbox) ? state.world.inbox : (state.world.inbox = []);
@@ -539,7 +563,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Fases 10–11</strong>Convites, rivalidades e um mundo que reage às suas decisões</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}${navButton('saves', '▣', 'Saves')}</nav><div class="sidebar-bottom"><strong>Fases 12–13</strong>Arena ao vivo, mundo conectado e carreira protegida</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -651,7 +675,8 @@
     const rivalsMarkup = rivals.map((rival) => `<article class="world-rival-row"><div>${fighterAvatar(rival, 'mini-portrait')}</div><div><strong>${escapeHTML(rival.name)}</strong><small>${escapeHTML(rival.archetype)} · ${rival.discipline}</small><p>${escapeHTML(rival.copy)}</p></div><div><b>${rival.heat}%</b><span class="rival-mini-bar"><i style="width:${rival.heat}%"></i></span></div></article>`).join('');
     const hotCopy = hot ? `${hot.archetype} · ${hot.record}` : 'Sem alvo definido';
     const hotSignal = hot?.heat >= 55 ? 'MÍDIA EM ALERTA' : 'OBSERVAÇÃO ATIVA';
-    return `<section class="content world-page"><section class="world-hero card"><div class="world-grid-glow"></div><div class="world-hero-copy"><span class="eyebrow">VALE INTELLIGENCE · REDE GLOBAL</span><h1>O mundo<br><span class="text-gold">não espera.</span></h1><p>Eventos rodam, rivais provocam e parceiros tomam posição. Suas decisões geram consequências no ranking, na mídia e nas próximas oportunidades.</p><div class="world-signal-row"><span><b>${activeInboxMessages().length}</b> decisão(ões) abertas</span><span><b>${state.world.results.length}</b> resultado(s) monitorado(s)</span><span><b>${hot?.heat || 0}%</b> rivalidade em alta</span></div></div><div class="world-radar"><div class="world-radar-ring ring-a"></div><div class="world-radar-ring ring-b"></div><div class="world-radar-ring ring-c"></div><span class="world-radar-core">V</span><i class="world-radar-ping ping-one"></i><i class="world-radar-ping ping-two"></i><small>LIVE<br>NETWORK</small></div></section><section class="world-layout"><article class="card world-inbox"><div class="card-title"><span>Caixa estratégica</span><small>${activeInboxMessages().length} decisão(ões) aguardando</small></div><div class="world-message-list">${messageMarkup}</div></article><section class="world-center-column"><article class="card world-calendar"><div class="card-title"><span>Radar de calendário</span><small>o que move o circuito</small></div><div class="world-calendar-track">${calendarMarkup}</div></article><article class="card world-results"><div class="card-title"><span>Placar do circuito</span><small>últimas transmissões</small></div><div class="world-result-feed">${resultsMarkup}</div></article></section><aside class="world-side"><article class="card rival-command"><div class="rival-command-head"><div><span class="eyebrow">RIVAL MAIS QUENTE</span><h2>${escapeHTML(hot?.name || 'Mercado aberto')}</h2><p>${escapeHTML(hotCopy)}</p></div>${hot ? fighterAvatar(hot, 'profile-portrait') : ''}</div><div class="rival-heat"><span style="width:${hot?.heat || 0}%"></span></div><div class="rival-command-footer"><span>CALOR ${hot?.heat || 0}%</span><span>${hotSignal}</span></div></article><article class="card world-rivals"><div class="card-title"><span>Quadro de rivalidades</span><small>efeito em audiência e mídia</small></div>${rivalsMarkup}</article></aside></section></section>`;
+    const mapMarkup = worldMapPanel();
+    return `<section class="content world-page"><section class="world-hero card"><div class="world-grid-glow"></div><div class="world-hero-copy"><span class="eyebrow">VALE INTELLIGENCE · REDE GLOBAL</span><h1>O mundo<br><span class="text-gold">não espera.</span></h1><p>Eventos rodam, rivais provocam e parceiros tomam posição. Suas decisões geram consequências no ranking, na mídia e nas próximas oportunidades.</p><div class="world-signal-row"><span><b>${activeInboxMessages().length}</b> decisão(ões) abertas</span><span><b>${state.world.results.length}</b> resultado(s) monitorado(s)</span><span><b>${hot?.heat || 0}%</b> rivalidade em alta</span></div></div><div class="world-radar"><div class="world-radar-ring ring-a"></div><div class="world-radar-ring ring-b"></div><div class="world-radar-ring ring-c"></div><span class="world-radar-core">V</span><i class="world-radar-ping ping-one"></i><i class="world-radar-ping ping-two"></i><small>LIVE<br>NETWORK</small></div></section>${mapMarkup}<section class="world-layout"><article class="card world-inbox"><div class="card-title"><span>Caixa estratégica</span><small>${activeInboxMessages().length} decisão(ões) aguardando</small></div><div class="world-message-list">${messageMarkup}</div></article><section class="world-center-column"><article class="card world-calendar"><div class="card-title"><span>Radar de calendário</span><small>o que move o circuito</small></div><div class="world-calendar-track">${calendarMarkup}</div></article><article class="card world-results"><div class="card-title"><span>Placar do circuito</span><small>últimas transmissões</small></div><div class="world-result-feed">${resultsMarkup}</div></article></section><aside class="world-side"><article class="card rival-command"><div class="rival-command-head"><div><span class="eyebrow">RIVAL MAIS QUENTE</span><h2>${escapeHTML(hot?.name || 'Mercado aberto')}</h2><p>${escapeHTML(hotCopy)}</p></div>${hot ? fighterAvatar(hot, 'profile-portrait') : ''}</div><div class="rival-heat"><span style="width:${hot?.heat || 0}%"></span></div><div class="rival-command-footer"><span>CALOR ${hot?.heat || 0}%</span><span>${hotSignal}</span></div></article><article class="card world-rivals"><div class="card-title"><span>Quadro de rivalidades</span><small>efeito em audiência e mídia</small></div>${rivalsMarkup}</article></aside></section></section>`;
   }
   function rankingTabs() {
     const discipline = state.world.selectedDiscipline;
@@ -684,7 +709,8 @@
   function fightStatusLabel(fight) {
     if (fight.status === 'preparing') return `Camp em curso · evento na semana ${fight.readyWeek}`;
     if (fight.status === 'ready') return 'Tudo pronto. A estratégia é sua.';
-    if (fight.status === 'active') return `Round ${fight.round} de ${fight.maxRounds} · troca ${Math.min(3, (fight.exchanges % 3) + 1)} de 3`;
+    if (fight.status === 'active') return `Round ${fight.round} de ${fight.maxRounds} · transmissão em andamento`;
+    if (fight.status === 'interval') return `Intervalo antes do round ${fight.round} · o corner pode mudar o plano`;
     if (fight.status === 'complete') return fight.result?.won ? 'Vitória registrada no histórico' : 'Resultado registrado no histórico';
     return 'Nenhuma luta confirmada';
   }
@@ -703,6 +729,68 @@
     const idle = !state.fightBooked && fight.status !== 'complete';
     const actionArea = idle ? `<div class="fight-callout"><strong>Convite regional aberto</strong><p>Assine o card para abrir a simulação tática de três rounds.</p><button class="button" data-action="book-fight">ACEITAR LUTA</button></div>` : waiting ? `<div class="fight-callout"><strong>Preparação necessária</strong><p>Faltam ${fight.readyWeek - state.week} semana(s) para a noite de luta. Treino e energia ainda podem ser ajustados.</p><button class="button" data-action="advance-week">AVANÇAR SEMANA</button></div>` : fight.status === 'ready' ? `<div class="fight-callout ready"><strong>Card confirmado</strong><p>Escolha uma tática a cada troca. Pressão oferece dano; defesa e energia aumentam a chance de sobreviver ao final.</p><button class="button" data-action="start-fight">INICIAR ROUND 1</button></div>` : fight.status === 'complete' ? `<div class="fight-result ${fight.result?.won ? 'won' : 'lost'}"><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(fighter.name)} ${fight.result?.won ? 'venceu' : 'foi superado(a)'} por ${escapeHTML(fight.result?.method || 'decisão')}</h2><p>${fight.result?.summary || 'O resultado foi aplicado no cartel, caixa, reputação e ranking.'}</p><div><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKING</button></div></div>` : `<div class="tactics-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="tactic-button ${fight.lastAction === tactic.animation ? 'last-action' : ''}" data-action="fight-tactic" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
     return `<section class="content fight-page"><div class="page-heading fight-heading"><div><div class="eyebrow">${escapeHTML(showName)} · ${fighter.discipline} · ${fighter.division}</div><h1>Noite de<br><span class="text-gold">luta.</span></h1><p class="page-copy">${fightStatusLabel(fight)} Cada escolha cria uma troca de combate e o resultado muda a carreira de verdade.</p></div><button class="button secondary" data-nav="home">CENTRAL</button></div><section class="fight-arena ${fight.status === 'active' ? `action-${fight.lastAction}` : ''}"><div class="arena-lights"></div><div class="arena-topline"><span>VALE FIGHT MANAGER</span><strong>${fight.status === 'active' ? `ROUND ${fight.round} / ${fight.maxRounds}` : fight.status === 'complete' ? 'RESULTADO OFICIAL' : 'CARD REGIONAL'}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="arena-stage">${fightCombatant(fighter, 'player', playerHealth, playerStamina)}<div class="arena-versus"><span>VS</span><small>${fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'LUTA EQUILIBRADA'}</small></div>${fightCombatant(opponent, 'opponent', opponentHealth, opponentStamina)}</div></section><section class="fight-detail-grid"><article class="card tactics-card"><div class="card-title"><span>${fight.status === 'active' ? 'Plano tático' : 'Orientação do corner'}</span><small>${fight.status === 'active' ? 'uma ação por troca' : 'simulação por turnos'}</small></div><div class="section-body">${actionArea}</div></article><aside class="card fight-log-card"><div class="card-title"><span>Log de combate</span><small>${fight.log.length ? `${fight.log.length} troca(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>O plano começa agora</strong><p>Prepare o atleta, entre no evento e escolha como ele reage em cada troca.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação tática fictícia. Os retratos representam personagens fictícios e as bandeiras indicam apenas a nacionalidade dos personagens.</p></section>`;
+  }
+  function clearFightAutomation() {
+    if (fightAutomationTimer !== null && typeof window.clearInterval === 'function') window.clearInterval(fightAutomationTimer);
+    fightAutomationTimer = null;
+  }
+  function beginFightAutomation() {
+    if (fightAutomationTimer !== null || typeof window.setInterval !== 'function') return;
+    fightAutomationTimer = window.setInterval(() => autoFightTick(), 1200);
+  }
+  function syncFightAutomation() {
+    if (state.fight?.status === 'active') beginFightAutomation();
+    else clearFightAutomation();
+  }
+  function fightRoundScore(fight) {
+    if (fight.roundScores.some((entry) => entry.round === fight.round)) return;
+    const swing = fight.momentum + (fight.playerHealth - fight.opponentHealth) * .42 + (fight.playerStamina - fight.opponentStamina) * .18;
+    const player = 10;
+    const opponent = swing > 20 ? 8 : 9;
+    fight.roundScores.push({ round: fight.round, player: swing >= 0 ? player : opponent, opponent: swing >= 0 ? opponent : player });
+  }
+  function buildScorecards(fight) {
+    const rounds = [...fight.roundScores];
+    while (rounds.length < fight.maxRounds) rounds.push({ round: rounds.length + 1, player: 10, opponent: 9 });
+    return [0, 1, 2].map((judge) => {
+      const modifier = judge === 1 ? 1 : judge === 2 ? -1 : 0;
+      const player = rounds.reduce((total, score) => total + Math.max(8, Math.min(10, score.player + (modifier && score.player !== score.opponent ? modifier : 0))), 0);
+      const opponent = rounds.reduce((total, score) => total + Math.max(8, Math.min(10, score.opponent - (modifier && score.player !== score.opponent ? modifier : 0))), 0);
+      return { judge: judge + 1, player, opponent };
+    });
+  }
+  function fightStrategyOptions(fight) {
+    return `<div class="corner-strategy-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="corner-strategy ${fight.cornerStrategy === key ? 'selected' : ''}" data-action="set-fight-strategy" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
+  }
+  function premiumFightArena(fight, fighter, opponent) {
+    const advantage = Math.max(-24, Math.min(24, fight.momentum * .18));
+    const announcement = fight.status === 'interval' ? `FIM DO ROUND ${Math.max(1, fight.round - 1)}` : fight.status === 'active' ? `ROUND ${fight.round}` : fight.status === 'complete' ? (fight.result?.won ? 'VITÓRIA VALE' : 'RESULTADO OFICIAL') : 'FIGHT NIGHT';
+    const liveNote = fight.status === 'active' ? `SIMULAÇÃO AO VIVO · TROCA ${Math.min(fight.exchangesPerRound, (fight.exchanges % fight.exchangesPerRound) + 1)} DE ${fight.exchangesPerRound}` : fight.status === 'interval' ? 'INTERVALO · O CORNER PODE AJUSTAR A ESTRATÉGIA' : 'ARENA PRONTA PARA O SINO';
+    return `<section class="premium-fight-arena ${fight.status}" style="--player-x:${28 + advantage}%;--opponent-x:${72 + advantage}%"><div class="fight-broadcast-bar"><span>VALE GLOBAL FEED</span><strong>${escapeHTML(liveNote)}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="round-announcement"><span>${escapeHTML(announcement)}</span><small>${fight.status === 'active' ? 'O combate avança automaticamente' : fight.status === 'interval' ? 'Decisão de corner disponível' : 'Pronto para começar'}</small></div><div class="octagon-topdown"><div class="octagon-grid"></div><div class="fight-token player-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(fighter, 'arena-avatar')}</span><b>VALE</b></div><div class="fight-token opponent-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(opponent, 'arena-avatar')}</span><b>RIVAL</b></div><div class="fight-clash ${fight.status === 'active' ? 'live' : ''}">✦</div></div><div class="premium-combatant-bars">${fightCombatant(fighter, 'player', fight.playerHealth ?? 100, fight.playerStamina ?? 100)}<div class="fight-center-status"><b>${fight.status === 'active' ? `${fight.round}:00` : fight.status === 'interval' ? 'INTERVALO' : 'PRÉ-LUTA'}</b><span>${fight.momentum > 14 ? 'VALE PRESSIONA' : fight.momentum < -14 ? 'RIVAL PRESSIONA' : 'LUTA EQUILIBRADA'}</span></div>${fightCombatant(opponent, 'opponent', fight.opponentHealth ?? 100, fight.opponentStamina ?? 100)}</div></section>`;
+  }
+  function fightResultMarkup(fight, fighter, opponent) {
+    const winner = fight.result?.won ? fighter : opponent;
+    const scorecards = fight.scorecards?.length ? `<div class="scorecard-grid">${fight.scorecards.map((card) => `<div><small>JUIZ ${card.judge}</small><strong class="${card.player > card.opponent ? 'winner-score' : ''}">${card.player}</strong><span>—</span><strong class="${card.opponent > card.player ? 'winner-score' : ''}">${card.opponent}</strong></div>`).join('')}</div>` : `<div class="finish-callout">${escapeHTML(fight.result?.method || 'interrupção')} · round ${fight.result?.round || fight.round}</div>`;
+    return `<section class="fight-verdict ${fight.result?.won ? 'won' : 'lost'}"><span class="eyebrow">DECISÃO OFICIAL</span><div class="verdict-winner">${fighterAvatar(winner, 'verdict-avatar')}<div><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(winner.name)}</h2><p>${escapeHTML(fight.result?.method || 'decisão dos juízes').toUpperCase()} · ROUND ${fight.result?.round || fight.round}</p></div></div>${scorecards}<p>${escapeHTML(fight.result?.summary || 'O resultado foi aplicado na carreira.')}</p><div class="verdict-actions"><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKINGS</button></div></section>`;
+  }
+  function fightViewPremium() {
+    const fighter = selectedFighter();
+    const fight = state.fight || createFightState();
+    if (!fighter) return fightView();
+    const opponent = fight.opponent || regionalOpponent(fighter);
+    const promotedEvent = state.eventPlanner?.activeEvent?.id === fight.eventId ? state.eventPlanner.activeEvent : null;
+    const competition = activeCompetition()?.id === fight.competitionId ? activeCompetition() : null;
+    const showName = promotedEvent?.name || competition?.name || 'Vale Regional 01';
+    const waiting = fight.status === 'preparing' && state.week < fight.readyWeek;
+    const idle = !state.fightBooked && fight.status !== 'complete';
+    let command = '';
+    if (idle) command = `<div class="fight-launch-card"><span class="eyebrow">JANELA DE COMBATE</span><h2>Uma nova<br><span class="text-gold">noite começa.</span></h2><p>Confirme o card para abrir a apresentação automatizada, com rounds, intervalos e resultado oficial.</p><button class="button fight-primary" data-action="book-fight">ACEITAR LUTA</button></div>`;
+    else if (waiting) command = `<div class="fight-launch-card"><span class="eyebrow">CAMP EM CURSO</span><h2>O sino chama<br><span class="text-gold">na semana ${fight.readyWeek}.</span></h2><p>O atleta ainda está em preparação. A energia e a condição do camp serão levadas para a arena.</p><button class="button fight-primary" data-action="advance-week">AVANÇAR SEMANA</button></div>`;
+    else if (fight.status === 'ready') command = `<div class="fight-launch-card ready"><span class="eyebrow">PRONTO PARA A TRANSMISSÃO</span><h2>O próximo capítulo<br><span class="text-gold">é agora.</span></h2><p>Ao iniciar, a luta avança sozinha. Você escolhe o plano de abertura e volta a intervir somente nos intervalos.</p>${fightStrategyOptions(fight)}<button class="button fight-primary" data-action="start-fight">▶ INICIAR FIGHT NIGHT</button></div>`;
+    else if (fight.status === 'active') command = `<div class="fight-live-command"><span class="live-dot"></span><div><span class="eyebrow">COMBATE AO VIVO</span><h2>O round está em andamento.</h2><p>O sistema simula as trocas. A próxima decisão de corner será liberada no intervalo.</p></div><button class="button danger" data-action="throw-towel">JOGAR A TOALHA</button></div>`;
+    else if (fight.status === 'interval') command = `<div class="fight-interval-command"><span class="eyebrow">INTERVALO · ROUND ${Math.max(1, fight.round - 1)} ENCERRADO</span><h2>Fale com o<br><span class="text-gold">seu atleta.</span></h2><p>${escapeHTML(fight.intervalNote || 'Recalibre o plano antes do próximo round. A escolha altera a próxima sequência automática.')}</p>${fightStrategyOptions(fight)}<div class="interval-actions"><button class="button fight-primary" data-action="continue-fight">▶ INICIAR ROUND ${fight.round}</button><button class="button danger" data-action="throw-towel">JOGAR A TOALHA</button></div></div>`;
+    else command = fightResultMarkup(fight, fighter, opponent);
+    return `<section class="content fight-page premium-fight-page"><div class="fight-premium-heading"><div><span class="eyebrow">${escapeHTML(showName)} · ${fighter.discipline} · ${fighter.division}</span><h1>Fight Night<br><span class="text-gold">em transmissão.</span></h1><p>${fightStatusLabel(fight)} O combate é automatizado em tempo real; suas decisões entram como estratégia de corner, não como golpes individuais.</p></div><button class="button secondary" data-nav="world">MAPA MUNDIAL</button></div>${premiumFightArena(fight, fighter, opponent)}<section class="premium-fight-bottom"><article class="card premium-command-card">${command}</article><aside class="card fight-log-card"><div class="card-title"><span>Feed oficial</span><small>${fight.log.length ? `${fight.log.length} momento(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.slice(0, 7).map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>Transmissão pronta</strong><p>Inicie a Fight Night para acompanhar a arena em tempo real.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação fictícia de gestão. Estratégias influenciam leitura, energia e risco; nenhuma organização real é representada sem licenciamento.</p></section>`;
   }
   function contractStepper(label, field, value, step, prefix = '', suffix = '') {
     return `<div class="contract-term"><div><strong>${label}</strong><small>${field === 'signing' ? 'pagamento único na assinatura' : field === 'salary' ? 'custo semanal recorrente' : field === 'duration' ? 'compromisso de longo prazo' : field === 'revenueShare' ? 'receita de bolsas e bônus' : 'porcentagem destinada ao atleta'}</small></div><div class="term-control"><button aria-label="Diminuir ${label}" data-action="adjust-offer" data-field="${field}" data-delta="-${step}">−</button><span>${prefix}${value}${suffix}</span><button aria-label="Aumentar ${label}" data-action="adjust-offer" data-field="${field}" data-delta="${step}">+</button></div></div>`;
@@ -768,7 +856,7 @@
     if (state.view === 'roster') view = rosterView();
     if (state.view === 'negotiation') view = negotiationView();
     if (state.view === 'events') view = eventPlannerView();
-    if (state.view === 'fight') view = fightView();
+    if (state.view === 'fight') view = fightViewPremium();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
     if (state.view === 'training') view = trainingView();
@@ -777,9 +865,11 @@
     if (state.view === 'sponsors') view = sponsorshipView();
     if (state.view === 'competitions') view = competitionView();
     if (state.view === 'world') view = worldView();
+    if (state.view === 'saves') view = savesView();
     if (state.view === 'finance') view = financeView();
     app.innerHTML = shell(view);
     bindEvents();
+    syncFightAutomation();
   }
   function setDraftFromInputs() {
     document.querySelectorAll('[data-draft]').forEach((input) => { state.draft[input.dataset.draft] = input.value.trim(); });
@@ -1266,16 +1356,99 @@
     const event = state.eventPlanner?.activeEvent;
     if (event?.id && event.id === state.fight.eventId) event.status = 'live';
     const competition = activeCompetition();
-    if (competition?.id === state.fight.competitionId) competition.status = 'live';
+    if (competition?.id && competition.id === state.fight.competitionId) competition.status = 'live';
+    state.fight.exchangesPerRound = state.fight.exchangesPerRound || 5;
+    state.fight.roundScores = Array.isArray(state.fight.roundScores) ? state.fight.roundScores : [];
+    state.fight.cornerStrategy = state.fight.cornerStrategy || 'defensive';
     state.fight.status = 'active';
-    state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: `${selectedFighter().name} entra no centro do espaço de luta. Escolha a primeira orientação do corner.` });
-    persist(); render(); toast('Round 1 iniciado. A decisão é sua.');
+    state.fight.animationTick = (state.fight.animationTick || 0) + 1;
+    state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: selectedFighter().name + ' entra no centro do octógono. A transmissão começa agora.' });
+    persist(); render(); beginFightAutomation(); toast('Round 1 iniciado. O combate avança em tempo real.');
+  }
+
+  function setFightStrategy(key) {
+    if (!fightTactics[key]) return;
+    state.fight.cornerStrategy = key;
+    const tactic = fightTactics[key];
+    state.fight.log.unshift({ round: state.fight.round, player: true, title: 'Instrução do corner', copy: 'Estratégia definida: ' + tactic.label + '.' });
+    persist(); render(); toast(tactic.label + ' preparada para o próximo trecho.');
+  }
+
+  function continueFight() {
+    if (state.fight.status !== 'interval') return;
+    state.fight.status = 'active';
+    state.fight.intervalNote = null;
+    state.fight.animationTick = (state.fight.animationTick || 0) + 1;
+    state.fight.log.unshift({ round: state.fight.round, player: true, title: 'Round ' + state.fight.round, copy: 'O referee reinicia a luta. O corner liberou ' + (fightTactics[state.fight.cornerStrategy]?.label || 'a estratégia') + '.' });
+    persist(); render(); beginFightAutomation();
+  }
+
+  function throwTowel() {
+    const fight = state.fight;
+    if (!['active', 'interval'].includes(fight.status)) return;
+    fight.log.unshift({ round: fight.round, player: false, title: 'Toalha jogada', copy: 'O corner encerra o combate para preservar o atleta.' });
+    finishFight(false, 'interrupção do corner');
+    persist(); render(); toast('A luta foi encerrada por interrupção do corner.');
+  }
+
+  function autoFightTick() {
+    const fight = state.fight;
+    const fighter = selectedFighter();
+    if (!fighter || fight.status !== 'active') { clearFightAutomation(); return; }
+    const tactic = fightTactics[fight.cornerStrategy] || fightTactics.defensive;
+    const rivalKey = opponentTactic(fight);
+    const rivalTactic = fightTactics[rivalKey];
+    const disciplineBonus = fighter.discipline === 'MMA' ? 1.06 : 0.96;
+    const playerPower = effectiveCombatRating(fighter) * tactic.offense * disciplineBonus * (0.91 + nextFightRandom() * 0.22);
+    const rivalPower = fight.opponent.rating * rivalTactic.offense * (0.91 + nextFightRandom() * 0.22);
+    const playerWins = playerPower + fight.momentum * 0.16 >= rivalPower;
+    const healthLoss = Math.round((playerWins ? rivalPower * 0.14 : playerPower * 0.16) * (0.88 + nextFightRandom() * 0.28));
+    const staminaLoss = Math.round((playerWins ? tactic.stamina : rivalTactic.stamina) * (0.92 + nextFightRandom() * 0.22));
+    if (playerWins) {
+      fight.opponentHealth = clamp(fight.opponentHealth - healthLoss, 0, 100);
+      fight.opponentStamina = clamp(fight.opponentStamina - staminaLoss, 0, 100);
+      fight.momentum = clamp(fight.momentum + 8, -100, 100);
+    } else {
+      fight.playerHealth = clamp(fight.playerHealth - healthLoss, 0, 100);
+      fight.playerStamina = clamp(fight.playerStamina - staminaLoss, 0, 100);
+      fight.momentum = clamp(fight.momentum - 8, -100, 100);
+    }
+    fight.exchanges += 1;
+    fight.animationTick = (fight.animationTick || 0) + 1;
+    fight.lastAction = playerWins ? tactic.label : rivalTactic.label;
+    fight.log.unshift({
+      round: fight.round,
+      player: playerWins,
+      title: tactic.label + ' × ' + rivalTactic.label,
+      copy: playerWins ? fighter.name + ' encontra espaço e assume o centro do cage.' : fight.opponent.name + ' responde e muda o ritmo do duelo.'
+    });
+    if (fight.playerHealth <= 0 || fight.opponentHealth <= 0) {
+      const playerWon = fight.opponentHealth <= 0;
+      const finish = (fight.cornerStrategy === 'takedown' || fight.cornerStrategy === 'clinch') && nextFightRandom() > 0.62 ? 'finalização' : 'nocaute técnico';
+      finishFight(playerWon, finish);
+    } else if (fight.exchanges % fight.exchangesPerRound === 0) {
+      const finishedRound = fight.round;
+      fightRoundScore(fight);
+      if (finishedRound >= fight.maxRounds) {
+        fight.scorecards = buildScorecards(fight);
+        const playerCards = fight.scorecards.filter((card) => card.player > card.opponent).length;
+        finishFight(playerCards >= 2, 'decisão dos juízes');
+      } else {
+        fight.round += 1;
+        fight.status = 'interval';
+        fight.intervalNote = fight.momentum >= 0 ? 'Boa leitura do seu atleta. Ajuste o plano para o próximo round.' : 'O rival cresceu no round. O corner precisa responder.';
+        fight.log.unshift({ round: finishedRound, player: fight.momentum >= 0, title: 'Fim do round ' + finishedRound, copy: fight.intervalNote });
+        clearFightAutomation();
+      }
+    }
+    persist(); render();
   }
   function tacticDamage(base, modifier, stamina, random) {
     return Math.max(1, Math.round((base * modifier * (.76 + random * .52)) * (.65 + Math.max(0, stamina) / 285)));
   }
   function finishFight(won, method) {
     const fight = state.fight;
+    clearFightAutomation();
     const fighter = selectedFighter();
     const promotedEvent = state.eventPlanner?.activeEvent?.id === fight.eventId ? state.eventPlanner.activeEvent : null;
     const competition = activeCompetition()?.id === fight.competitionId ? activeCompetition() : null;
@@ -1316,6 +1489,7 @@
       settleCompetitionResult(competition, won, fighter, method);
       fight.result.summary += ` ${competition.name} foi registrado no passaporte competitivo.`;
     }
+    if (fight.result) fight.result.round = fight.round;
   }
   function executeTactic(key) {
     const fight = state.fight;
@@ -1397,6 +1571,38 @@
   function incrementWin(record) { const [wins, losses, draws] = record.split('-').map(Number); return `${wins + 1}-${losses}-${draws}`; }
   function incrementLoss(record) { const [wins, losses, draws] = record.split('-').map(Number); return `${wins}-${losses + 1}-${draws}`; }
   function resetCareer() { localStorage.removeItem(STORAGE_KEY); state = makeSeed(); render(); toast('Save local removido. Uma nova carreira pode começar.'); }
+  function loadSaveSlots() {
+    try {
+      const slots = JSON.parse(localStorage.getItem(SAVE_SLOT_STORAGE_KEY));
+      return Array.isArray(slots) ? slots : [null, null, null];
+    } catch (error) { return [null, null, null]; }
+  }
+  function saveToSlot(index) {
+    const slots = loadSaveSlots();
+    slots[index] = {
+      savedAt: new Date().toLocaleString('pt-BR'),
+      manager: state.draft.managerName || 'Gestor VALE',
+      academy: state.draft.academyName || 'Academia VALE',
+      week: state.week,
+      cash: state.cash,
+      data: structuredClone(state)
+    };
+    localStorage.setItem(SAVE_SLOT_STORAGE_KEY, JSON.stringify(slots));
+    persist(); render(); toast('Carreira salva no slot ' + (index + 1) + '.');
+  }
+  function loadFromSlot(index) {
+    const slot = loadSaveSlots()[index];
+    if (!slot?.data) { toast('Este slot ainda está vazio.'); return; }
+    clearFightAutomation();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slot.data));
+    state = loadState();
+    state.view = 'saves';
+    persist(); render(); toast('Slot ' + (index + 1) + ' carregado.');
+  }
+  function savesView() {
+    const slots = loadSaveSlots();
+    return `<section class="content saves-page"><div class="page-heading"><div><div class="eyebrow">Carreira local · fase 13</div><h1>Proteja<br><span class="text-gold">seu legado.</span></h1><p class="page-copy">Três slots locais para guardar momentos decisivos da carreira. O save automático continua ativo neste navegador.</p></div><button class="button secondary" data-nav="home">VOLTAR À CENTRAL</button></div><section class="save-autosave card"><div><span class="eyebrow">AUTOSAVE ATIVO</span><h2>Seu progresso é gravado a cada decisão.</h2><p>Slots manuais servem para preservar bifurcações da carreira antes de uma luta, contratação ou semana importante.</p></div><div class="autosave-status"><span>●</span><strong>ARMAZENAMENTO LOCAL</strong><small>navegador atual</small></div></section><section class="save-slot-grid">${slots.map((slot, index) => `<article class="card save-slot ${slot ? 'occupied' : 'empty'}"><div class="save-slot-top"><span>SLOT 0${index + 1}</span><b>${slot ? 'REGISTRADO' : 'DISPONÍVEL'}</b></div>${slot ? `<div class="save-slot-body"><h2>${escapeHTML(slot.academy)}</h2><p>${escapeHTML(slot.manager)} · Semana ${slot.week}</p><div><span>CAIXA</span><strong>${money(slot.cash)}</strong></div><small>Último save: ${escapeHTML(slot.savedAt)}</small></div><div class="save-slot-actions"><button class="button secondary" data-action="load-save-slot" data-slot="${index}">CARREGAR</button><button class="button" data-action="save-slot" data-slot="${index}">ATUALIZAR</button></div>` : `<div class="save-slot-empty"><span>◇</span><h2>Novo ponto de retorno</h2><p>Guarde a carreira atual neste espaço.</p><button class="button" data-action="save-slot" data-slot="${index}">SALVAR AQUI</button></div>`}</article>`).join('')}</section></section>`;
+  }
   function bindEvents() {
     app.querySelectorAll('[data-nav]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.nav; persist(); render(); }));
     app.querySelectorAll('[data-choice]').forEach((button) => button.addEventListener('click', () => { state.draft[button.dataset.choice] = button.dataset.value; persist(); render(); }));
@@ -1438,6 +1644,11 @@
       if (action === 'open-fight') { state.view = 'fight'; persist(); render(); }
       if (action === 'start-fight') startFight();
       if (action === 'fight-tactic') executeTactic(button.dataset.tactic);
+      if (action === 'set-fight-strategy') setFightStrategy(button.dataset.tactic);
+      if (action === 'continue-fight') continueFight();
+      if (action === 'throw-towel') throwTowel();
+      if (action === 'save-slot') saveToSlot(Number(button.dataset.slot));
+      if (action === 'load-save-slot') loadFromSlot(Number(button.dataset.slot));
       if (action === 'watch-event') { state.world.watchedEventId = button.dataset.id; const event = state.world.events.find((entry) => entry.id === button.dataset.id); addMessage(`Você passou a monitorar ${event.name}. Os resultados aparecerão ao avançar a semana.`); persist(); render(); toast(`Agora acompanhando ${event.name}.`); }
       if (action === 'advance-week') advanceWeek();
       if (action === 'reset') openModal('Recomeçar carreira', '<p>Isso apagará o save local deste navegador. Esta ação não afeta o código do projeto nem o repositório.</p>', [{ id: 'cancel', label: 'Cancelar', className: 'secondary', onClick: () => {} }, { id: 'confirm', label: 'Apagar save', className: 'danger', onClick: resetCareer }]);

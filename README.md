@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 11
+# Vale Fight Manager — Fases 1 a 13
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -36,10 +36,14 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - Competições por convite: critérios verificáveis de OVR, reputação e pontos, taxa de inscrição, rota marcada no calendário e recompensa após a Fight Night.
 - Mundo vivo ampliado: caixa estratégica, decisões de imprensa, rivalidades reativas, eventos monitorados e radar global de agenda.
 - Cada decisão e competição atualiza caixa, fãs, reputação, moral, rivalidade, ranking e histórico de campanha; saves anteriores migram automaticamente para as Fases 10 e 11.
+- Fight Night em transmissão: arena superior inspirada no octógono VALE fornecido, dois tokens de lutadores em movimento, barras de saúde e energia, avanço automático por round, escolhas de corner apenas nos intervalos e botão para jogar a toalha.
+- Encerramentos verificáveis por nocaute técnico, finalização, interrupção do corner ou decisão; decisões exibem três scorecards e todos os resultados mostram o avatar do vencedor.
+- Mapa mundial de circuitos autorais, pontos de competição, cidades e tabela de força dos circuitos. A arquitetura reserva a integração de marcas licenciadas, sem usar logos de terceiros nesta versão.
+- Três slots manuais de carreira, autosave local e shell PWA offline com service worker.
 
 ## Roadmap
 
-O plano do MVP tem **13 lotes no total**. As Fases 1–11 estão concluídas nesta versão; os dois lotes finais estão descritos em [ROADMAP.md](ROADMAP.md).
+O plano do MVP tem **13 lotes no total**. As Fases 1–13 estão concluídas nesta versão. A visão de evolução pós-MVP está em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Como executar
 
@@ -61,7 +65,7 @@ O comando garante a presença dos artefatos essenciais da entrega. Os comportame
 
 ## Limites atuais
 
-Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação tática por turnos; o ranking e os resultados são independentes e construídos apenas com conteúdo fictício.
+Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação automatizada de gestão; o ranking e os circuitos são independentes e construídos apenas com conteúdo fictício.
 
 ## Créditos de asset
 
