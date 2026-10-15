@@ -1,4 +1,4 @@
-/* Vale Fight Manager — Fases 1 a 9
+/* Vale Fight Manager — Fases 1 a 11
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -81,6 +81,9 @@
   }
   function createSponsorshipState() {
     return { active: [], history: [] };
+  }
+  function createCompetitionState() {
+    return { selectedOfferId: 'rising-cup', active: null, completed: [], history: [] };
   }
   const campSessions = {
     striking: { label: 'Striking técnico', icon: '✦', copy: 'Precisão, combinações e leitura de distância.', gains: { striking: 2, defense: 1 }, fatigue: 9, camp: 6, facility: 'ring' },
@@ -171,6 +174,21 @@
     },
   };
 
+  const worldRivalProfiles = [
+    { id: 'sokolov', name: 'Viktor Sokolov', initials: 'VS', country: 'Rússia', discipline: 'MMA', division: 'Leve', record: '12-2-0', rating: 70, heat: 34, archetype: 'O provocador', copy: 'Quer transformar cada confronto em manchete.', color: 'red' },
+    { id: 'ortega', name: 'Mateo Ortega', initials: 'MO', country: 'México', discipline: 'Boxe', division: 'Leve', record: '14-3-0', rating: 68, heat: 22, archetype: 'O estrategista', copy: 'Aparece no seu caminho sempre que o ranking sobe.', color: 'blue' },
+    { id: 'okafor', name: 'Amina Okafor', initials: 'AO', country: 'Nigéria', discipline: 'MMA', division: 'Palha', record: '11-1-0', rating: 71, heat: 18, archetype: 'A campeã jovem', copy: 'Um nome que a mídia já trata como futuro da divisão.', color: 'gold' },
+  ];
+  const competitionCatalog = [
+    { id: 'rising-cup', tier: 'CIRCUITO ABERTO', name: 'VALE Rising Cup', city: 'São Paulo', icon: '◇', minRating: 62, minReputation: 18, minPoints: 0, entryFee: 4500, prize: 34000, participation: 8500, reputationGain: 4, fansGain: 460, pointsGain: 62, delay: 2, description: 'A vitrine regional onde novos nomes deixam de ser promessa.', accent: 'gold' },
+    { id: 'contender-series', tier: 'SÉRIE CONTENDER', name: 'Apex Contender Series', city: 'Rio de Janeiro', icon: '◈', minRating: 66, minReputation: 26, minPoints: 70, entryFee: 12000, prize: 78000, participation: 18000, reputationGain: 8, fansGain: 980, pointsGain: 145, delay: 3, description: 'Um card televisionado que aproxima o atleta do ranking mundial.', accent: 'red' },
+    { id: 'global-invitational', tier: 'CONVITE INTERNACIONAL', name: 'Meridian Invitational', city: 'Lisboa', icon: '✦', minRating: 71, minReputation: 40, minPoints: 175, entryFee: 24000, prize: 165000, participation: 38000, reputationGain: 13, fansGain: 2100, pointsGain: 255, delay: 4, description: 'A rota internacional exige nome, números e uma reputação que sustente a pressão.', accent: 'blue' },
+  ];
+  const worldBriefingCatalog = [
+    { id: 'opening-brief', week: 1, category: 'CONSELHO', sender: 'Diretoria VALE', title: 'O mercado está olhando para você.', copy: 'A primeira impressão da academia será formada antes do primeiro cinturão. Escolha como a organização se apresenta ao circuito.', choices: { press: { label: 'ABRIR PORTAS À IMPRENSA', copy: 'Gera atenção imediata e aumenta a pressão.', fans: 170, reputation: 2, rivalry: 4 }, quiet: { label: 'TRABALHAR NOS BASTIDORES', copy: 'Preserva caixa e protege o atleta do ruído.', cash: 3500, morale: 2 } } },
+    { id: 'sokolov-callout', week: 2, category: 'RIVALIDADE', sender: 'Viktor Sokolov', rivalId: 'sokolov', title: '“O projeto VALE ainda não provou nada.”', copy: 'Sokolov citou sua academia em uma entrevista após vencer na Arena Solaris. O público já espera uma resposta.', choices: { answer: { label: 'RESPONDER AO DESAFIO', copy: 'Aumenta a rivalidade e a audiência potencial.', fans: 240, reputation: 2, rivalry: 24 }, ignore: { label: 'DEIXAR O CAMP FALAR', copy: 'Protege o foco e evita alimentar a narrativa.', morale: 3, rivalry: -6 } } },
+    { id: 'network-window', week: 4, category: 'TRANSMISSÃO', sender: 'Rede Prisma', title: 'Janela de cobertura para o próximo show.', copy: 'A rede aceita acompanhar o evento se a academia se comprometer com uma agenda de conteúdo.', choices: { accept: { label: 'ACEITAR A COBERTURA', copy: 'Amplia a exposição e adiciona receita operacional.', cash: 12000, fans: 360, reputation: 3 }, decline: { label: 'MANTER CONTROLE CRIATIVO', copy: 'Evita a pressão de mídia e eleva a moral do elenco.', morale: 4 } } },
+  ];
   function createWorldState() {
     return {
       seed: 271826,
@@ -180,17 +198,19 @@
       watchedEventId: 'apex-32',
       playerRanking: { fighterId: null, points: 20, position: null, lastChange: 0 },
       events: [
-        { id: 'apex-32', name: 'Circuito Apex 32', discipline: 'MMA', date: 'Semana 2', venue: 'Arena Solaris', main: 'Aiden Brooks × Kaito Nakamura', status: 'agendado' },
-        { id: 'meridian-17', name: 'Liga Meridian 17', discipline: 'Boxe', date: 'Semana 3', venue: 'Pavilhão Norte', main: 'Andrés Rojas × Kieran Price', status: 'agendado' },
-        { id: 'apex-33', name: 'Circuito Apex 33', discipline: 'MMA', date: 'Semana 4', venue: 'Domo Aurora', main: 'Asha Rahman × Júlia Pinheiro', status: 'agendado' },
+        { id: 'apex-32', name: 'Circuito Apex 32', discipline: 'MMA', week: 2, date: 'Semana 2', venue: 'Arena Solaris', main: 'Aiden Brooks × Kaito Nakamura', status: 'agendado' },
+        { id: 'meridian-17', name: 'Liga Meridian 17', discipline: 'Boxe', week: 3, date: 'Semana 3', venue: 'Pavilhão Norte', main: 'Andrés Rojas × Kieran Price', status: 'agendado' },
+        { id: 'apex-33', name: 'Circuito Apex 33', discipline: 'MMA', week: 4, date: 'Semana 4', venue: 'Domo Aurora', main: 'Asha Rahman × Júlia Pinheiro', status: 'agendado' },
       ],
       results: [],
+      inbox: [structuredClone(worldBriefingCatalog[0])],
+      rivalries: structuredClone(worldRivalProfiles),
     };
   }
 
   function makeSeed() {
     return {
-      schemaVersion: 9,
+      schemaVersion: 11,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -225,6 +245,7 @@
       scouting: createScoutingState(),
       staffCenter: createStaffCenterState(),
       sponsorship: createSponsorshipState(),
+      competitions: createCompetitionState(),
     };
   }
 
@@ -232,8 +253,11 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 9 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 11 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
+        migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
+        migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
+        migrated.world.rivalries = Array.isArray(migrated.world.rivalries) ? migrated.world.rivalries : structuredClone(worldRivalProfiles);
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
         migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
@@ -243,6 +267,7 @@
         migrated.scouting = parsed.scouting ? { ...createScoutingState(), ...parsed.scouting, reports: parsed.scouting.reports && typeof parsed.scouting.reports === 'object' ? parsed.scouting.reports : {}, shortlist: Array.isArray(parsed.scouting.shortlist) ? parsed.scouting.shortlist : [], history: Array.isArray(parsed.scouting.history) ? parsed.scouting.history : [] } : createScoutingState();
         migrated.staffCenter = parsed.staffCenter ? { ...createStaffCenterState(), ...parsed.staffCenter, hiredIds: Array.isArray(parsed.staffCenter.hiredIds) ? parsed.staffCenter.hiredIds : [], history: Array.isArray(parsed.staffCenter.history) ? parsed.staffCenter.history : [] } : createStaffCenterState();
         migrated.sponsorship = parsed.sponsorship ? { ...createSponsorshipState(), ...parsed.sponsorship, active: Array.isArray(parsed.sponsorship.active) ? parsed.sponsorship.active : [], history: Array.isArray(parsed.sponsorship.history) ? parsed.sponsorship.history : [] } : createSponsorshipState();
+        migrated.competitions = parsed.competitions ? { ...createCompetitionState(), ...parsed.competitions, completed: Array.isArray(parsed.competitions.completed) ? parsed.competitions.completed : [], history: Array.isArray(parsed.competitions.history) ? parsed.competitions.history : [] } : createCompetitionState();
         migrated.fighters = Array.isArray(parsed.fighters) ? parsed.fighters : [];
         migrated.fighters.forEach((fighter) => ensureDevelopment(fighter));
         return migrated;
@@ -286,6 +311,48 @@
   function scoutingCenter() { return state.scouting || createScoutingState(); }
   function staffCenter() { return state.staffCenter || createStaffCenterState(); }
   function sponsorshipCenter() { return state.sponsorship || createSponsorshipState(); }
+  function competitionCenter() { return state.competitions || createCompetitionState(); }
+  function competitionById(id) { return competitionCatalog.find((competition) => competition.id === id); }
+  function activeCompetition() { const active = competitionCenter().active; return active && ['registered', 'ready', 'live'].includes(active.status) ? active : null; }
+  function openRivalries() { return Array.isArray(state.world.rivalries) ? state.world.rivalries : []; }
+  function hottestRivalry(fighter = selectedFighter()) {
+    const relevant = openRivalries().filter((rival) => !fighter || rival.discipline === fighter.discipline);
+    return relevant.reduce((leader, rival) => !leader || rival.heat > leader.heat ? rival : leader, null);
+  }
+  function rivalryInfluence(fighter = selectedFighter()) { return hottestRivalry(fighter)?.heat || 0; }
+  function competitionEligibility(competition, fighter = selectedFighter()) {
+    const activeShow = eventPlanner().activeEvent?.status;
+    const hasOpenSlot = !state.fightBooked && !activeCompetition() && !['planned', 'ready', 'live'].includes(activeShow);
+    const ready = fighter && fighterCanCompete(fighter);
+    const rating = Number(fighter?.rating || 0) >= competition.minRating;
+    const reputation = state.reputation >= competition.minReputation;
+    const points = state.world.playerRanking.points >= competition.minPoints;
+    return { fighter: Boolean(fighter), ready, rating, reputation, points, hasOpenSlot, eligible: Boolean(fighter && ready && rating && reputation && points && hasOpenSlot) };
+  }
+  function competitionOpponent(fighter, competition) {
+    const candidates = openRivalries().filter((rival) => rival.discipline === fighter.discipline && rival.division === fighter.division);
+    const fallback = regionalOpponent(fighter);
+    const rival = candidates[(avatarIndex(competition.id) + state.week) % Math.max(1, candidates.length)] || candidates[0];
+    if (!rival) return { ...fallback, rating: Math.max(fallback.rating || 64, competition.minRating + 1) };
+    return { ...rival, rating: Math.max(rival.rating, competition.minRating + 1) };
+  }
+  function worldCalendarEntries() {
+    const globalEvents = state.world.events.map((event, index) => ({ id: event.id, week: event.week || index + 2, type: event.discipline, title: event.name, detail: `${event.venue} · ${event.main}`, status: event.status }));
+    const competition = activeCompetition();
+    const promoted = eventPlanner().activeEvent;
+    if (competition) globalEvents.push({ id: competition.id, week: competition.week, type: competition.tier, title: competition.name, detail: `${competition.city} · ${competition.fighterName} × ${competition.opponent.name}`, status: competition.status });
+    if (promoted && ['planned', 'ready', 'live'].includes(promoted.status)) globalEvents.push({ id: promoted.id, week: promoted.week, type: 'VALE EVENT', title: promoted.name, detail: `${promoted.venueName} · ${promoted.fighterName} × ${promoted.opponent.name}`, status: promoted.status });
+    return globalEvents.sort((first, second) => first.week - second.week).slice(0, 7);
+  }
+  function stageWorldBriefing() {
+    const inbox = Array.isArray(state.world.inbox) ? state.world.inbox : (state.world.inbox = []);
+    const template = worldBriefingCatalog.find((entry) => entry.week <= state.week && !inbox.some((message) => message.id === entry.id));
+    if (!template) return;
+    inbox.unshift(structuredClone(template));
+    inbox.splice(8);
+    addMessage(`Nova inteligência de mercado: ${template.sender} enviou uma decisão para sua caixa estratégica.`);
+  }
+  function activeInboxMessages() { return (state.world.inbox || []).filter((message) => message.status !== 'resolved'); }
   function staffById(id) { return staffMarket.find((member) => member.id === id); }
   function hiredStaff() { return staffCenter().hiredIds.map(staffById).filter(Boolean); }
   function staffBonus(key) { return hiredStaff().reduce((sum, member) => sum + (member.effects[key] || 0), 0); }
@@ -306,10 +373,11 @@
     const sponsorBonus = sponsorEventBonus();
     if (!fighter) return { attendance: 0, gate: 0, media: 0, sponsorBonus, operating: venue.production, purse: 0, totalCost: venue.rental + promotion.cost + venue.production, projected: -(venue.rental + promotion.cost + venue.production) + sponsorBonus };
     const marketing = staffBonus('marketing');
-    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience + marketing * 140;
+    const rivalryHeat = rivalryInfluence(fighter);
+    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience + marketing * 140 + rivalryHeat * 11;
     const attendance = Math.min(venue.capacity, Math.max(600, Math.round(interest)));
     const gate = attendance * venue.ticket;
-    const media = promotion.media + Math.round(state.reputation * 330) + Math.round(marketing * 9000);
+    const media = promotion.media + Math.round(state.reputation * 330) + Math.round(marketing * 9000) + rivalryHeat * 135;
     const purse = 26000 + fighter.rating * 440;
     const operating = venue.production + Math.round(attendance * 7.5);
     const totalCost = venue.rental + promotion.cost + operating;
@@ -439,6 +507,7 @@
       [group.rows[index], group.rows[index + 1]] = [group.rows[index + 1], group.rows[index]];
     }
     addMessage(`${event.name}: ${winner} venceu por ${method}. O ranking simulado foi atualizado.`);
+    stageWorldBriefing();
   }
   function addMessage(text) {
     state.messages.unshift({ text, time: `Semana ${state.week}` });
@@ -470,7 +539,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Fases 7–9</strong>Mercado observado · equipe especializada · marca monetizada</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}</nav><div class="sidebar-bottom"><strong>Fases 10–11</strong>Convites, rivalidades e um mundo que reage às suas decisões</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -553,6 +622,36 @@
     const active = activeSponsors();
     const weekly = active.reduce((sum, contract) => sum + (sponsorById(contract.sponsorId)?.weekly || 0), 0);
     return `<section class="content sponsorship-page"><div class="page-heading"><div><div class="eyebrow">Marca, parceiros & receitas</div><h1>Transforme<br><span class="text-gold">atenção em valor.</span></h1><p class="page-copy">As marcas são autorais e seus contratos não são decorativos: pagam na assinatura, geram receita semanal e bonificam eventos próprios.</p></div><button class="button secondary" data-nav="finance">VER LIVRO-CAIXA</button></div><section class="sponsor-summary">${statCard('Parceiros ativos', active.length, active.length ? 'contratos em vigência' : 'ofertas disponíveis', 'var(--gold-bright)')}${statCard('Receita semanal', money(weekly), 'lançada ao fechar a semana', 'var(--green)')}${statCard('Bônus por evento', money(sponsorEventBonus()), 'liquidado após a Fight Night', 'var(--blue)')}${statCard('Força da marca', state.reputation, `${state.fans.toLocaleString('pt-BR')} fãs na base`, 'var(--white)')}</section><section class="sponsor-layout"><article class="card sponsor-offers"><div class="card-title"><span>Ofertas de parceria</span><small>requisitos verificáveis</small></div><div class="sponsor-offer-list">${sponsorshipOffers.map((sponsor) => { const contract = active.find((entry) => entry.sponsorId === sponsor.id); const eligible = sponsorEligible(sponsor); return `<article class="sponsor-offer ${contract ? 'active' : ''}"><div class="sponsor-symbol">${sponsor.name.slice(0, 1)}</div><div><span>${escapeHTML(sponsor.category)}</span><strong>${escapeHTML(sponsor.name)}</strong><p>${escapeHTML(sponsor.copy)}</p><small>Entrada ${money(sponsor.upfront)} · ${money(sponsor.weekly)}/semana · ${money(sponsor.eventBonus)} por show</small></div><div class="sponsor-terms"><em>${contract ? `${contract.remainingWeeks} sem.` : eligible ? 'ELEGÍVEL' : 'BLOQUEADO'}</em><small>Req. rep. ${sponsor.minReputation} · ${sponsor.minFans.toLocaleString('pt-BR')} fãs</small><button class="button ${contract ? 'secondary' : ''}" data-action="accept-sponsor" data-id="${sponsor.id}" ${contract || !eligible ? 'disabled' : ''}>${contract ? 'ATIVO' : eligible ? 'ASSINAR' : 'SEM ALCANCE'}</button></div></article>`; }).join('')}</div></article><aside class="sponsor-side"><article class="card active-sponsors"><div class="card-title"><span>Contratos ativos</span><small>${active.length}/2 vagas</small></div>${active.length ? active.map((contract) => { const sponsor = sponsorById(contract.sponsorId); return `<div class="active-sponsor-row"><div class="sponsor-symbol">${sponsor.name.slice(0, 1)}</div><div><strong>${escapeHTML(sponsor.name)}</strong><small>${contract.remainingWeeks} semanas · ${money(sponsor.weekly)}/semana</small></div><span class="pill">ATIVO</span></div>`; }).join('') : '<div class="contract-empty">Nenhuma marca vinculada. Aumente reputação e fãs ou assine a proposta elegível.</div>'}</article><article class="card sponsor-forecast"><div class="card-title"><span>Próxima liquidação</span><small>automática</small></div><div class="section-body"><strong>${money(weekly)}</strong><p class="text-muted">Entrará no caixa quando a próxima semana for fechada. O histórico será registrado no livro-caixa.</p></div></article><article class="card"><div class="card-title"><span>Histórico de marca</span><small>${center.history.length} registro(s)</small></div><div class="staff-history">${center.history.length ? center.history.slice(0, 5).map((entry) => `<div><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.copy)} · S${entry.week}</small></div>`).join('') : '<p>Assinaturas e encerramentos aparecerão aqui.</p>'}</div></article></aside></section></section>`;
+  }
+  function competitionView() {
+    const center = competitionCenter();
+    const fighter = selectedFighter();
+    const active = activeCompetition();
+    const points = state.world.playerRanking.points;
+    const activeMarkup = active ? `<article class="card competition-command"><div class="competition-command-stage"><div><span class="eyebrow">INSCRIÇÃO CONFIRMADA · S${active.week}</span><h2>${escapeHTML(active.name)}</h2><p>${escapeHTML(active.city)} · ${escapeHTML(active.tier)} · ${escapeHTML(active.status).toUpperCase()}</p></div><span class="competition-seal">${active.icon}</span></div><div class="competition-faceoff"><div>${fighterAvatar(fighter, 'portrait')}<strong>${escapeHTML(active.fighterName)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div><b>VS</b><div>${fighterAvatar(active.opponent, 'portrait')}<strong>${escapeHTML(active.opponent.name)}</strong><small>${fighterIdentity(active.opponent)} · ${active.opponent.record}</small></div></div><div class="competition-command-grid"><div><small>ENTRADA PAGA</small><strong>${money(active.entryFee)}</strong></div><div><small>PRÊMIO POR VITÓRIA</small><strong>${money(active.prize)}</strong></div><div><small>IMPACTO</small><strong>+${active.pointsGain} pts · +${active.reputationGain} rep.</strong></div></div><div class="competition-command-actions"><button class="button ${active.status === 'ready' ? '' : 'secondary'}" data-action="open-competition-fight" ${active.status === 'ready' ? '' : 'disabled'}>${active.status === 'ready' ? 'ENTRAR NA FIGHT NIGHT' : 'CAMP EM PREPARAÇÃO'}</button><button class="button secondary" data-nav="world">VER CALENDÁRIO GLOBAL</button></div></article>` : `<article class="card competition-command competition-empty"><div class="competition-command-stage"><div><span class="eyebrow">ROTA COMPETITIVA</span><h2>O próximo<br><span class="text-gold">convite.</span></h2><p>${fighter ? 'Escolha uma competição elegível. A inscrição reserva o atleta, cobra a taxa e prepara a Fight Night no calendário.' : 'Contrate e selecione um atleta para começar a disputar as rotas oficiais.'}</p></div><span class="competition-seal">♛</span></div><div class="competition-empty-line"><span>Ranking atual</span><strong>${points} pontos · ${state.world.playerRanking.position ? `#${state.world.playerRanking.position}` : 'sem posição'}</strong></div>${fighter ? `<button class="button secondary" data-nav="rankings">ANALISAR RANKINGS</button>` : '<button class="button" data-nav="scouting">ENCONTRAR ATLETA</button>'}</article>`;
+    return `<section class="content competition-page"><section class="competition-hero card"><div class="competition-hero-light"></div><div class="competition-hero-copy"><span class="eyebrow">VALE COMPETITION DESK · TEMPORADA ${state.week}</span><h1>Ganhe a<br><span class="text-gold">próxima porta.</span></h1><p>Convites exigem atleta, nível, reputação e pontos. Ao aceitar, a vaga vira um compromisso real da sua carreira.</p><div class="competition-hero-pills"><span>♛ ${points} PONTOS</span><span>◉ ${state.reputation} REPUTAÇÃO</span><span>♟ ${state.fans.toLocaleString('pt-BR')} FÃS</span></div></div><div class="competition-hero-visual"><div class="competition-orbit"></div><div class="competition-crown">V</div><small>ROAD TO<br>THE TOP</small></div></section><section class="competition-layout"><article class="card competition-offers"><div class="card-title"><span>Convites & competições</span><small>critério verificável · vaga única</small></div><div class="competition-offer-list">${competitionCatalog.map((competition) => { const rules = competitionEligibility(competition, fighter); const activeOffer = active?.offerId === competition.id; const completed = center.completed.find((entry) => entry.offerId === competition.id); const checks = [[`OVR ${competition.minRating}+`, rules.rating], [`REP. ${competition.minReputation}+`, rules.reputation], [`${competition.minPoints} PTS`, rules.points]].map(([label, ok]) => `<span class="competition-check ${ok ? 'met' : ''}">${ok ? '✓' : '○'} ${label}</span>`).join(''); const status = completed ? 'CONCLUÍDA' : activeOffer ? active.status === 'ready' ? 'FIGHT NIGHT' : 'CONFIRMADA' : rules.eligible ? 'ELEGÍVEL' : 'EM ANÁLISE'; return `<article class="competition-offer ${competition.accent} ${activeOffer ? 'selected' : ''}"><div class="competition-offer-top"><span class="competition-tier">${competition.icon} ${competition.tier}</span><em>${status}</em></div><div class="competition-offer-main"><div><h2>${escapeHTML(competition.name)}</h2><p>${escapeHTML(competition.city)} · ${escapeHTML(competition.description)}</p></div><div class="competition-prize"><span>PRÊMIO</span><strong>${money(competition.prize)}</strong></div></div><div class="competition-checks">${checks}</div><div class="competition-offer-footer"><div><small>Taxa ${money(competition.entryFee)} · S${state.week + competition.delay}</small><strong>+${competition.pointsGain} pts · +${competition.reputationGain} rep.</strong></div><button class="button ${rules.eligible ? '' : 'secondary'}" data-action="accept-competition" data-id="${competition.id}" ${!rules.eligible || Boolean(active) || Boolean(completed) ? 'disabled' : ''}>${completed ? 'REGISTRO CONCLUÍDO' : activeOffer ? 'VAGA RESERVADA' : rules.eligible ? 'ACEITAR CONVITE' : !rules.fighter ? 'SEM ATLETA' : !rules.ready ? 'ATLETA INDISPONÍVEL' : !rules.hasOpenSlot ? 'AGENDA OCUPADA' : 'REQUISITOS PENDENTES'}</button></div></article>`; }).join('')}</div></article><aside class="competition-side">${activeMarkup}<article class="card competition-route-card"><div class="card-title"><span>Passaporte competitivo</span><small>dados do atleta selecionado</small></div><div class="competition-passport">${fighter ? `${fighterAvatar(fighter, 'profile-portrait')}<div><strong>${escapeHTML(fighter.name)}</strong><small>${fighter.discipline} · ${fighter.division}</small></div>` : '<span class="competition-passport-empty">♛</span>'}</div><div class="competition-route-stats"><div><small>OVR</small><strong>${fighter?.rating || '—'}</strong></div><div><small>RANKING</small><strong>${state.world.playerRanking.position ? `#${state.world.playerRanking.position}` : 'NR'}</strong></div><div><small>PONTOS</small><strong>${points}</strong></div></div></article><article class="card competition-history"><div class="card-title"><span>Registro de campanha</span><small>${center.completed.length} decisão(ões)</small></div>${center.completed.length ? center.completed.slice(0, 4).map((entry) => `<div><span>S${entry.week}</span><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.result)}</small></div>`).join('') : '<div class="contract-empty">Sua primeira participação competitiva aparecerá aqui depois da Fight Night.</div>'}</article></aside></section></section>`;
+  }
+  function worldView() {
+    const inbox = [...(state.world.inbox || [])].sort((first, second) => (first.status === 'resolved') - (second.status === 'resolved'));
+    const rivals = [...openRivalries()].sort((first, second) => second.heat - first.heat);
+    const calendar = worldCalendarEntries();
+    const hot = rivals[0];
+    const messageMarkup = inbox.map((message) => {
+      const choices = message.choices || {};
+      const resolved = message.status === 'resolved';
+      const choiceButtons = Object.entries(choices).map(([choice, detail]) => `<button class="button ${choice === 'quiet' || choice === 'ignore' || choice === 'decline' ? 'secondary' : ''}" data-action="resolve-world-message" data-id="${message.id}" data-choice="${choice}">${escapeHTML(detail.label)}</button>`).join('');
+      const outcome = resolved ? `<div class="world-resolution"><b>✓ ${escapeHTML(message.decisionLabel || 'Decisão registrada')}</b><small>${escapeHTML(message.decisionCopy || 'O mundo reagiu à escolha da academia.')}</small></div>` : `<div class="world-message-actions">${choiceButtons}</div>`;
+      return `<article class="world-message ${resolved ? 'resolved' : ''}"><div class="world-message-head"><span>${escapeHTML(message.category)}</span><small>${escapeHTML(message.sender)} · S${message.week}</small></div><h2>${escapeHTML(message.title)}</h2><p>${escapeHTML(message.copy)}</p>${outcome}</article>`;
+    }).join('');
+    const calendarMarkup = calendar.map((entry) => {
+      const tone = entry.status.includes('finalizado') || entry.status === 'complete' ? 'done' : entry.status === 'ready' ? 'ready' : '';
+      return `<article class="world-calendar-entry ${tone}"><div class="world-week-badge"><strong>S${entry.week}</strong><span>${escapeHTML(entry.type)}</span></div><div><strong>${escapeHTML(entry.title)}</strong><small>${escapeHTML(entry.detail)}</small></div><em>${escapeHTML(entry.status)}</em></article>`;
+    }).join('');
+    const resultsMarkup = state.world.results.length ? state.world.results.map((result) => `<div><span>◉</span><p><strong>${escapeHTML(result.event)}</strong>${escapeHTML(result.winner)} venceu por ${escapeHTML(result.method)}.<small>Semana ${result.week}</small></p></div>`).join('') : '<div class="contract-empty">O próximo avanço de semana resolve um evento global e atualiza o radar.</div>';
+    const rivalsMarkup = rivals.map((rival) => `<article class="world-rival-row"><div>${fighterAvatar(rival, 'mini-portrait')}</div><div><strong>${escapeHTML(rival.name)}</strong><small>${escapeHTML(rival.archetype)} · ${rival.discipline}</small><p>${escapeHTML(rival.copy)}</p></div><div><b>${rival.heat}%</b><span class="rival-mini-bar"><i style="width:${rival.heat}%"></i></span></div></article>`).join('');
+    const hotCopy = hot ? `${hot.archetype} · ${hot.record}` : 'Sem alvo definido';
+    const hotSignal = hot?.heat >= 55 ? 'MÍDIA EM ALERTA' : 'OBSERVAÇÃO ATIVA';
+    return `<section class="content world-page"><section class="world-hero card"><div class="world-grid-glow"></div><div class="world-hero-copy"><span class="eyebrow">VALE INTELLIGENCE · REDE GLOBAL</span><h1>O mundo<br><span class="text-gold">não espera.</span></h1><p>Eventos rodam, rivais provocam e parceiros tomam posição. Suas decisões geram consequências no ranking, na mídia e nas próximas oportunidades.</p><div class="world-signal-row"><span><b>${activeInboxMessages().length}</b> decisão(ões) abertas</span><span><b>${state.world.results.length}</b> resultado(s) monitorado(s)</span><span><b>${hot?.heat || 0}%</b> rivalidade em alta</span></div></div><div class="world-radar"><div class="world-radar-ring ring-a"></div><div class="world-radar-ring ring-b"></div><div class="world-radar-ring ring-c"></div><span class="world-radar-core">V</span><i class="world-radar-ping ping-one"></i><i class="world-radar-ping ping-two"></i><small>LIVE<br>NETWORK</small></div></section><section class="world-layout"><article class="card world-inbox"><div class="card-title"><span>Caixa estratégica</span><small>${activeInboxMessages().length} decisão(ões) aguardando</small></div><div class="world-message-list">${messageMarkup}</div></article><section class="world-center-column"><article class="card world-calendar"><div class="card-title"><span>Radar de calendário</span><small>o que move o circuito</small></div><div class="world-calendar-track">${calendarMarkup}</div></article><article class="card world-results"><div class="card-title"><span>Placar do circuito</span><small>últimas transmissões</small></div><div class="world-result-feed">${resultsMarkup}</div></article></section><aside class="world-side"><article class="card rival-command"><div class="rival-command-head"><div><span class="eyebrow">RIVAL MAIS QUENTE</span><h2>${escapeHTML(hot?.name || 'Mercado aberto')}</h2><p>${escapeHTML(hotCopy)}</p></div>${hot ? fighterAvatar(hot, 'profile-portrait') : ''}</div><div class="rival-heat"><span style="width:${hot?.heat || 0}%"></span></div><div class="rival-command-footer"><span>CALOR ${hot?.heat || 0}%</span><span>${hotSignal}</span></div></article><article class="card world-rivals"><div class="card-title"><span>Quadro de rivalidades</span><small>efeito em audiência e mídia</small></div>${rivalsMarkup}</article></aside></section></section>`;
   }
   function rankingTabs() {
     const discipline = state.world.selectedDiscipline;
@@ -676,6 +775,8 @@
     if (state.view === 'scouting') view = scoutingView();
     if (state.view === 'staff') view = staffView();
     if (state.view === 'sponsors') view = sponsorshipView();
+    if (state.view === 'competitions') view = competitionView();
+    if (state.view === 'world') view = worldView();
     if (state.view === 'finance') view = financeView();
     app.innerHTML = shell(view);
     bindEvents();
@@ -703,6 +804,7 @@
     state.scouting = createScoutingState();
     state.staffCenter = createStaffCenterState();
     state.sponsorship = createSponsorshipState();
+    state.competitions = createCompetitionState();
     state.ledger = [{ title: 'Capital de abertura', category: 'Início de carreira', amount: state.cash, week: 'S1', kind: 'income' }, { title: 'Licenças e abertura', category: 'Operação', amount: -18000, week: 'S1', kind: 'expense' }];
     state.cash -= 18000;
     state.complete = true;
@@ -882,6 +984,70 @@
       }
     });
   }
+  function acceptCompetition(id) {
+    const competition = competitionById(id);
+    const fighter = selectedFighter();
+    const center = competitionCenter();
+    if (!competition || !fighter) { toast('Selecione um atleta contratado antes de analisar convites.'); return; }
+    const eligibility = competitionEligibility(competition, fighter);
+    if (!eligibility.eligible) { toast('Esse convite ainda exige requisitos de atleta, reputação, ranking ou agenda.'); return; }
+    if (state.cash < competition.entryFee) { toast('Caixa insuficiente para formalizar a inscrição nesta competição.'); return; }
+    const opponent = competitionOpponent(fighter, competition);
+    const active = { id: `competition-${competition.id}-${state.week}`, offerId: competition.id, ...competition, fighterId: fighter.id, fighterName: fighter.name, opponent, week: state.week + competition.delay, status: 'registered', acceptedWeek: state.week };
+    state.cash -= competition.entryFee;
+    center.selectedOfferId = id;
+    center.active = active;
+    center.history.unshift({ name: competition.name, copy: `Inscrição confirmada para a Semana ${active.week}`, week: state.week });
+    center.history = center.history.slice(0, 8);
+    addLedger(`Inscrição: ${competition.name}`, 'Competição e elegibilidade', -competition.entryFee, 'expense');
+    addMessage(`${fighter.name} aceitou o convite para ${competition.name}. O adversário será ${opponent.name} na Semana ${active.week}.`);
+    persist(); render(); toast('Convite aceito. A vaga está reservada e o camp foi priorizado.');
+  }
+  function resolveCompetitionReady() {
+    const competition = activeCompetition();
+    if (!competition || competition.status !== 'registered' || state.week < competition.week) return false;
+    const fighter = state.fighters.find((candidate) => candidate.id === competition.fighterId);
+    if (!fighter) return false;
+    competition.status = 'ready';
+    state.selectedFighterId = fighter.id;
+    state.fightBooked = true;
+    state.fight = { ...createFightState(), status: 'ready', readyWeek: state.week, competitionId: competition.id, opponent: competition.opponent, playerStamina: Math.min(100, (fighter.conditioning || 70) + 15) };
+    addMessage(`${competition.name} está pronto. ${fighter.name} encara ${competition.opponent.name} por uma bolsa de ${money(competition.prize)} e ${competition.pointsGain} pontos.`);
+    toast('Convite competitivo liberado. A Fight Night está pronta.');
+    return true;
+  }
+  function resolveWorldMessage(id, choice) {
+    const message = (state.world.inbox || []).find((entry) => entry.id === id);
+    const outcome = message?.choices?.[choice];
+    if (!message || message.status === 'resolved' || !outcome) return;
+    state.cash += outcome.cash || 0;
+    state.fans = Math.max(0, state.fans + (outcome.fans || 0));
+    state.reputation = Math.max(0, state.reputation + (outcome.reputation || 0));
+    const fighter = selectedFighter();
+    if (fighter && outcome.morale) fighter.morale = Math.max(40, Math.min(100, (fighter.morale || 70) + outcome.morale));
+    const rival = openRivalries().find((entry) => entry.id === message.rivalId) || hottestRivalry(fighter);
+    if (rival && outcome.rivalry) rival.heat = Math.max(0, Math.min(100, rival.heat + outcome.rivalry));
+    if (outcome.cash) addLedger(`Decisão: ${message.sender}`, 'Inteligência de mercado', outcome.cash, 'income');
+    message.status = 'resolved';
+    message.decisionLabel = outcome.label;
+    message.decisionCopy = outcome.copy;
+    addMessage(`${message.sender}: ${outcome.copy}`);
+    persist(); render(); toast('Decisão registrada. O mundo reagirá a este posicionamento.');
+  }
+  function settleCompetitionResult(competition, won, fighter, method) {
+    const center = competitionCenter();
+    if (!competition || competition.status === 'complete') return;
+    competition.status = 'complete';
+    competition.result = won ? 'vitória na Fight Night' : 'participação encerrada';
+    competition.completedWeek = state.week;
+    center.completed.unshift({ offerId: competition.offerId, name: competition.name, result: won ? `Vitória por ${method}` : `Derrota por ${method}`, week: state.week });
+    center.completed = center.completed.slice(0, 8);
+    center.history.unshift({ name: competition.name, copy: won ? 'Campanha concluída com vitória' : 'Campanha concluída com aprendizado', week: state.week });
+    center.history = center.history.slice(0, 8);
+    const rival = openRivalries().find((entry) => entry.id === competition.opponent.id);
+    if (rival) rival.heat = Math.max(0, Math.min(100, rival.heat + (won ? 18 : 12)));
+    addMessage(`${competition.name}: ${fighter.name} ${won ? 'transformou o convite em vitória' : 'encerrou a participação'} e deixou uma nova marca no circuito.`);
+  }
   function selectEventVenue(id) {
     if (!eventVenues.some((venue) => venue.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
     state.eventPlanner.venueId = id;
@@ -906,6 +1072,7 @@
   function planEvent() {
     const planner = eventPlanner();
     if (planner.activeEvent && ['planned', 'ready', 'live'].includes(planner.activeEvent.status)) { toast('Já existe um show em produção. Conclua-o antes de montar outro card.'); return; }
+    if (activeCompetition()) { toast('A academia já possui uma competição confirmada. Conclua a campanha antes de produzir outro show.'); return; }
     if (state.fightBooked && state.fight.status !== 'complete') { toast('Finalize a luta já agendada antes de promover um novo show.'); return; }
     const fighter = eventFighter();
     if (!fighter) { toast('Você precisa de um atleta ativo para confirmar uma luta principal.'); return; }
@@ -1033,7 +1200,7 @@
     fighter.morale = Math.max(40, Math.min(100, (fighter.morale || 70) + moraleDelta + (development.fatigue < 35 ? 1 : 0)));
     const injuryRisk = Math.max(2, Math.min(36, Math.round(4 + development.fatigue * .22 + sparringDays * 5 - state.facilities.recovery * 3 - staffBonus('recovery') * 3)));
     const activeEventStatus = state.eventPlanner?.activeEvent?.status;
-    const protectedFightWindow = state.fightBooked || ['planned', 'ready', 'live'].includes(activeEventStatus);
+    const protectedFightWindow = state.fightBooked || Boolean(activeCompetition()) || ['planned', 'ready', 'live'].includes(activeEventStatus);
     const injured = !protectedFightWindow && development.fatigue >= 62 && nextCampRandom() * 100 < injuryRisk;
     const growth = Object.entries(gains).filter(([, gain]) => gain > 0).map(([attribute, gain]) => `+${Math.round(gain)} ${campAttributeLabels[attribute]}`).join(' · ');
     if (injured) {
@@ -1075,6 +1242,7 @@
   function bookFight() {
     const fighter = selectedFighter(); if (!fighter) { toast('Você precisa de um atleta contratado para aceitar a luta.'); return; }
     if (!fighterCanCompete(fighter)) { toast(`${fighter.name} está em recuperação. A equipe médica ainda não liberou uma nova luta.`); return; }
+    if (activeCompetition()) { state.view = 'competitions'; persist(); render(); toast('Existe um convite competitivo em andamento para este ciclo.'); return; }
     if (state.fightBooked && state.fight?.status !== 'complete') { state.view = 'fight'; persist(); render(); return; }
     const opponent = regionalOpponent(fighter);
     state.fightBooked = true;
@@ -1096,7 +1264,9 @@
     if (!state.fightBooked || state.fight.status !== 'ready') return;
     if (!fighterCanCompete(selectedFighter())) { toast('O atleta ainda está em recuperação e não pode iniciar o combate.'); return; }
     const event = state.eventPlanner?.activeEvent;
-    if (event?.id === state.fight.eventId) event.status = 'live';
+    if (event?.id && event.id === state.fight.eventId) event.status = 'live';
+    const competition = activeCompetition();
+    if (competition?.id === state.fight.competitionId) competition.status = 'live';
     state.fight.status = 'active';
     state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: `${selectedFighter().name} entra no centro do espaço de luta. Escolha a primeira orientação do corner.` });
     persist(); render(); toast('Round 1 iniciado. A decisão é sua.');
@@ -1108,8 +1278,13 @@
     const fight = state.fight;
     const fighter = selectedFighter();
     const promotedEvent = state.eventPlanner?.activeEvent?.id === fight.eventId ? state.eventPlanner.activeEvent : null;
-    const eventLabel = promotedEvent ? promotedEvent.name : 'Vale Regional 01';
-    const reward = promotedEvent ? promotedEvent.purse : 62000 + state.reputation * 750;
+    const competition = activeCompetition()?.id === fight.competitionId ? activeCompetition() : null;
+    const eventLabel = promotedEvent ? promotedEvent.name : competition ? competition.name : 'Vale Regional 01';
+    const reward = promotedEvent ? promotedEvent.purse : competition ? competition.prize : 62000 + state.reputation * 750;
+    const participation = competition ? competition.participation : Math.round(reward * .28);
+    const reputationGain = competition ? competition.reputationGain : 7;
+    const fansGain = competition ? competition.fansGain : 340;
+    const pointsGain = competition ? competition.pointsGain : 110;
     fight.status = 'complete';
     state.fightBooked = false;
     fighter.conditioning = Math.max(46, Math.min(100, (fighter.conditioning || 70) - (won ? 13 : 19)));
@@ -1117,25 +1292,29 @@
     if (won) {
       const previousRank = state.world.playerRanking.position;
       fighter.record = incrementWin(fighter.record);
-      state.cash += reward; state.reputation += 7; state.fans += 340; state.world.playerRanking.points += 110;
+      state.cash += reward; state.reputation += reputationGain; state.fans += fansGain; state.world.playerRanking.points += pointsGain;
       const rank = refreshPlayerRanking();
       addLedger(`Bolsa: ${fighter.name}`, eventLabel, reward, 'income');
-      addMessage(`${fighter.name} venceu ${fight.opponent.name} por ${method}. A carreira recebeu +110 pontos de ranking.`);
+      addMessage(`${fighter.name} venceu ${fight.opponent.name} por ${method}. A carreira recebeu +${pointsGain} pontos de ranking.`);
       if (!previousRank && rank?.position) addMessage(`${fighter.name} entrou no ranking simulado em #${rank.position} após a vitória no card regional.`);
-      fight.result = { won: true, method, summary: `Bolsa de ${money(reward)}, +7 reputação, +340 fãs e +110 pontos de ranking.` };
+      fight.result = { won: true, method, summary: `Bolsa de ${money(reward)}, +${reputationGain} reputação, +${fansGain} fãs e +${pointsGain} pontos de ranking.` };
       toast(`Vitória por ${method}! A carreira avançou.`);
     } else {
       fighter.record = incrementLoss(fighter.record);
-      state.reputation = Math.max(0, state.reputation - 2); state.fans = Math.max(0, state.fans - 45);
-      addLedger(`Bolsa de participação: ${fighter.name}`, eventLabel, Math.round(reward * .28), 'income');
-      state.cash += Math.round(reward * .28);
+      state.reputation = Math.max(0, state.reputation - (competition ? 1 : 2)); state.fans = Math.max(0, state.fans - (competition ? 25 : 45));
+      addLedger(`Bolsa de participação: ${fighter.name}`, eventLabel, participation, 'income');
+      state.cash += participation;
       addMessage(`${fighter.name} perdeu para ${fight.opponent.name} por ${method}. A equipe volta ao camp com dados para evoluir.`);
-      fight.result = { won: false, method, summary: `Bolsa de participação de ${money(Math.round(reward * .28))}; reputação -2 e aprendizado registrado para o próximo camp.` };
+      fight.result = { won: false, method, summary: `Bolsa de participação de ${money(participation)}; reputação reduzida e aprendizado registrado para o próximo camp.` };
       toast(`Resultado por ${method}. A trajetória continua.`);
     }
     if (promotedEvent) {
       settlePromotedEvent(promotedEvent, won);
       fight.result.summary += ` ${promotedEvent.name} foi liquidado no caixa com bilheteria, mídia e produção.`;
+    }
+    if (competition) {
+      settleCompetitionResult(competition, won, fighter, method);
+      fight.result.summary += ` ${competition.name} foi registrado no passaporte competitivo.`;
     }
   }
   function executeTactic(key) {
@@ -1185,7 +1364,7 @@
     resolveScoutReports();
     settleSponsorWeek();
     state.contracts.forEach((contract) => { if (contract.status === 'ativo') contract.remainingWeeks = Math.max(0, (contract.remainingWeeks ?? contract.duration * 52) - 1); });
-    const plannedShow = state.eventPlanner?.activeEvent?.status === 'planned';
+    const plannedShow = state.eventPlanner?.activeEvent?.status === 'planned' || activeCompetition()?.status === 'registered';
     const report = applyTrainingWeek();
     const campFighterId = campFighter()?.id;
     state.fighters.filter((fighter) => fighter.id !== campFighterId).forEach((fighter) => {
@@ -1195,7 +1374,10 @@
     });
     addLedger(specialistPayroll ? 'Folha, especialistas e operação' : 'Folha, manutenção e logística', 'Fechamento semanal', -payroll, 'expense');
     const promotedEvent = state.eventPlanner?.activeEvent;
-    if (promotedEvent?.status === 'planned' && state.week >= promotedEvent.week) {
+    const competitionReady = resolveCompetitionReady();
+    if (competitionReady) {
+      // A notificação e a Fight Night são configuradas pela resolução do convite.
+    } else if (promotedEvent?.status === 'planned' && state.week >= promotedEvent.week) {
       const fighter = state.fighters.find((candidate) => candidate.id === promotedEvent.fighterId);
       if (fighter) {
         state.selectedFighterId = fighter.id;
@@ -1232,6 +1414,8 @@
       if (action === 'scout-negotiate') scoutNegotiate(button.dataset.id);
       if (action === 'hire-staff') hireStaff(button.dataset.id);
       if (action === 'accept-sponsor') acceptSponsor(button.dataset.id);
+      if (action === 'accept-competition') acceptCompetition(button.dataset.id);
+      if (action === 'resolve-world-message') resolveWorldMessage(button.dataset.id, button.dataset.choice);
       if (action === 'open-negotiation') beginNegotiation(button.dataset.id);
       if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));
       if (action === 'reset-offer') resetOffer();
@@ -1242,6 +1426,7 @@
       if (action === 'select-event-fighter') selectEventFighter(button.dataset.id);
       if (action === 'plan-event') planEvent();
       if (action === 'open-event-fight') { state.view = 'fight'; persist(); render(); }
+      if (action === 'open-competition-fight') { state.view = 'fight'; persist(); render(); }
       if (action === 'select-fighter') { state.selectedFighterId = button.dataset.id; persist(); if (button.dataset.navAfter) state.view = button.dataset.navAfter; render(); }
       if (action === 'select-camp-fighter') selectCampFighter(button.dataset.id);
       if (action === 'select-camp-focus') selectCampFocus(button.dataset.focus);

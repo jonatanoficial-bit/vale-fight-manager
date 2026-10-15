@@ -13,11 +13,11 @@ O planejamento-base do MVP está organizado em **13 lotes**. Cada lote deve ampl
 7. Prospecção, lista curta e relatórios com prazo semanal.
 8. Mercado de equipe técnica e bônus operacionais persistentes.
 9. Patrocínios, força de marca e receitas de parceria.
+10. Competições, convites, elegibilidade por ranking, inscrição, Fight Night e premiação persistente.
+11. Mundo vivo ampliado: inbox estratégico, rivalidades, calendário e consequências de mercado.
 
 ## Próximos lotes
 
-10. Competições, convites, elegibilidade por ranking e propostas de luta.
-11. Mundo vivo ampliado: inbox estratégico, rivalidades, calendário e consequências de mercado.
 12. Fight Engine avançado: apresentação expandida, corner, scorecards e feedback pós-luta.
 13. Polimento de lançamento: slots de save, PWA offline, acessibilidade, performance e QA de campanha completa.
 

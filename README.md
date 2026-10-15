@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 9
+# Vale Fight Manager — Fases 1 a 11
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -33,10 +33,13 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - Equipe técnica: seis especialistas fictícios contratáveis, com assinatura, folha semanal e efeitos reais em treino, recuperação, alcance de marca e inteligência de mercado.
 - Patrocínios autorais: requisitos de fãs e reputação, pagamento de entrada, receita semanal, prazo de contrato e bônus efetivo nos eventos próprios.
 - Migração automática dos saves anteriores para as Fases 7, 8 e 9.
+- Competições por convite: critérios verificáveis de OVR, reputação e pontos, taxa de inscrição, rota marcada no calendário e recompensa após a Fight Night.
+- Mundo vivo ampliado: caixa estratégica, decisões de imprensa, rivalidades reativas, eventos monitorados e radar global de agenda.
+- Cada decisão e competição atualiza caixa, fãs, reputação, moral, rivalidade, ranking e histórico de campanha; saves anteriores migram automaticamente para as Fases 10 e 11.
 
 ## Roadmap
 
-O plano do MVP tem **13 lotes no total**. As Fases 1–9 estão concluídas nesta versão; os próximos quatro lotes estão descritos em [ROADMAP.md](ROADMAP.md).
+O plano do MVP tem **13 lotes no total**. As Fases 1–11 estão concluídas nesta versão; os dois lotes finais estão descritos em [ROADMAP.md](ROADMAP.md).
 
 ## Como executar
 
