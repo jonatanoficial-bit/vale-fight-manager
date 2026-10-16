@@ -1,4 +1,4 @@
-# Vale Fight Manager — Fases 1 a 13
+# Vale Fight Manager — MVP Fases 1 a 13 + Evolução 14
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -40,10 +40,11 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - Encerramentos verificáveis por nocaute técnico, finalização, interrupção do corner ou decisão; decisões exibem três scorecards e todos os resultados mostram o avatar do vencedor.
 - Mapa mundial de circuitos autorais, pontos de competição, cidades e tabela de força dos circuitos. A arquitetura reserva a integração de marcas licenciadas, sem usar logos de terceiros nesta versão.
 - Três slots manuais de carreira, autosave local e shell PWA offline com service worker.
+- Temporada mundial jogável: pontos independentes por circuito, metas de elegibilidade, campeões autorais, rota de cinturão, desafio com custo de deslocamento e conquista persistente no histórico da carreira.
 
 ## Roadmap
 
-O plano do MVP tem **13 lotes no total**. As Fases 1–13 estão concluídas nesta versão. A visão de evolução pós-MVP está em [FUTURE_VISION.md](FUTURE_VISION.md).
+O plano do MVP teve **13 lotes no total**, todos concluídos. Esta versão também entrega a **Evolução 14**, primeira etapa pós-MVP: temporada mundial e rota de cinturão. A visão das próximas evoluções está em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Como executar
 
@@ -65,7 +66,7 @@ O comando garante a presença dos artefatos essenciais da entrega. Os comportame
 
 ## Limites atuais
 
-Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação automatizada de gestão; o ranking e os circuitos são independentes e construídos apenas com conteúdo fictício.
+Ainda não há animação 2D quadro a quadro, cloud save, áudio, defesas de título recorrentes, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação automatizada de gestão; o ranking e os circuitos são independentes e construídos apenas com conteúdo fictício.
 
 ## Créditos de asset
 

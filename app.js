@@ -1,4 +1,4 @@
-/* Vale Fight Manager — Fases 1 a 13
+/* Vale Fight Manager — MVP Fases 1 a 13 + Evolução 14
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -182,9 +182,9 @@
     { id: 'okafor', name: 'Amina Okafor', initials: 'AO', country: 'Nigéria', discipline: 'MMA', division: 'Palha', record: '11-1-0', rating: 71, heat: 18, archetype: 'A campeã jovem', copy: 'Um nome que a mídia já trata como futuro da divisão.', color: 'gold' },
   ];
   const competitionCatalog = [
-    { id: 'rising-cup', tier: 'CIRCUITO ABERTO', name: 'VALE Rising Cup', city: 'São Paulo', icon: '◇', minRating: 62, minReputation: 18, minPoints: 0, entryFee: 4500, prize: 34000, participation: 8500, reputationGain: 4, fansGain: 460, pointsGain: 62, delay: 2, description: 'A vitrine regional onde novos nomes deixam de ser promessa.', accent: 'gold' },
-    { id: 'contender-series', tier: 'SÉRIE CONTENDER', name: 'Apex Contender Series', city: 'Rio de Janeiro', icon: '◈', minRating: 66, minReputation: 26, minPoints: 70, entryFee: 12000, prize: 78000, participation: 18000, reputationGain: 8, fansGain: 980, pointsGain: 145, delay: 3, description: 'Um card televisionado que aproxima o atleta do ranking mundial.', accent: 'red' },
-    { id: 'global-invitational', tier: 'CONVITE INTERNACIONAL', name: 'Meridian Invitational', city: 'Lisboa', icon: '✦', minRating: 71, minReputation: 40, minPoints: 175, entryFee: 24000, prize: 165000, participation: 38000, reputationGain: 13, fansGain: 2100, pointsGain: 255, delay: 4, description: 'A rota internacional exige nome, números e uma reputação que sustente a pressão.', accent: 'blue' },
+    { id: 'rising-cup', circuitId: 'vale-rising', tier: 'CIRCUITO ABERTO', name: 'VALE Rising Cup', city: 'São Paulo', icon: '◇', minRating: 62, minReputation: 18, minPoints: 0, entryFee: 4500, prize: 34000, participation: 8500, reputationGain: 4, fansGain: 460, pointsGain: 62, delay: 2, description: 'A vitrine regional onde novos nomes deixam de ser promessa.', accent: 'gold' },
+    { id: 'contender-series', circuitId: 'apex-league', tier: 'SÉRIE CONTENDER', name: 'Apex Contender Series', city: 'Rio de Janeiro', icon: '◈', minRating: 66, minReputation: 26, minPoints: 70, entryFee: 12000, prize: 78000, participation: 18000, reputationGain: 8, fansGain: 980, pointsGain: 145, delay: 3, description: 'Um card televisionado que aproxima o atleta do ranking mundial.', accent: 'red' },
+    { id: 'global-invitational', circuitId: 'meridian-boxing', tier: 'CONVITE INTERNACIONAL', name: 'Meridian Invitational', city: 'Lisboa', icon: '✦', minRating: 71, minReputation: 40, minPoints: 175, entryFee: 24000, prize: 165000, participation: 38000, reputationGain: 13, fansGain: 2100, pointsGain: 255, delay: 4, description: 'A rota internacional exige nome, números e uma reputação que sustente a pressão.', accent: 'blue' },
   ];
   const globalCircuitCatalog = [
     { id: 'vale-rising', name: 'VALE Rising Cup', discipline: 'MMA', city: 'São Paulo', country: 'Brasil', mark: 'VR', tier: 'EMERGENTE', points: 62, x: 31, y: 66, accent: 'gold' },
@@ -193,6 +193,23 @@
     { id: 'pacific-crown', name: 'Pacific Crown', discipline: 'MMA', city: 'Tóquio', country: 'Japão', mark: 'PC', tier: 'MAJOR', points: 210, x: 83, y: 42, accent: 'green' },
     { id: 'desert-strike', name: 'Desert Strike Championship', discipline: 'Boxe', city: 'Dubai', country: 'Emirados Árabes Unidos', mark: 'DS', tier: 'MAJOR', points: 195, x: 63, y: 49, accent: 'gold' },
   ];
+  const circuitChampionProfiles = {
+    'vale-rising': { id: 'dante-kwan', name: 'Dante Kwan', initials: 'DK', country: 'Brasil', record: '18-2-0', rating: 74, style: 'Pressão compacta' },
+    'apex-league': { id: 'aiden-brooks', name: 'Aiden Brooks', initials: 'AB', country: 'EUA', record: '22-1-0', rating: 79, style: 'Striker de elite' },
+    'meridian-boxing': { id: 'samuel-voss', name: 'Samuel Voss', initials: 'SV', country: 'Dinamarca', record: '24-1-0', rating: 80, style: 'Boxe de distância' },
+    'pacific-crown': { id: 'riku-tanaka', name: 'Riku Tanaka', initials: 'RT', country: 'Japão', record: '21-2-0', rating: 78, style: 'Quedas e controle' },
+    'desert-strike': { id: 'nadia-fares', name: 'Nadia Fares', initials: 'NF', country: 'Emirados Árabes Unidos', record: '19-3-0', rating: 77, style: 'Contra-golpe preciso' },
+  };
+  function createCircuitCampaign() {
+    return {
+      season: 1,
+      startingWeek: 1,
+      selectedCircuitId: 'vale-rising',
+      points: Object.fromEntries(globalCircuitCatalog.map((circuit) => [circuit.id, 0])),
+      titles: {},
+      history: [],
+    };
+  }
   const worldBriefingCatalog = [
     { id: 'opening-brief', week: 1, category: 'CONSELHO', sender: 'Diretoria VALE', title: 'O mercado está olhando para você.', copy: 'A primeira impressão da academia será formada antes do primeiro cinturão. Escolha como a organização se apresenta ao circuito.', choices: { press: { label: 'ABRIR PORTAS À IMPRENSA', copy: 'Gera atenção imediata e aumenta a pressão.', fans: 170, reputation: 2, rivalry: 4 }, quiet: { label: 'TRABALHAR NOS BASTIDORES', copy: 'Preserva caixa e protege o atleta do ruído.', cash: 3500, morale: 2 } } },
     { id: 'sokolov-callout', week: 2, category: 'RIVALIDADE', sender: 'Viktor Sokolov', rivalId: 'sokolov', title: '“O projeto VALE ainda não provou nada.”', copy: 'Sokolov citou sua academia em uma entrevista após vencer na Arena Solaris. O público já espera uma resposta.', choices: { answer: { label: 'RESPONDER AO DESAFIO', copy: 'Aumenta a rivalidade e a audiência potencial.', fans: 240, reputation: 2, rivalry: 24 }, ignore: { label: 'DEIXAR O CAMP FALAR', copy: 'Protege o foco e evita alimentar a narrativa.', morale: 3, rivalry: -6 } } },
@@ -206,6 +223,7 @@
       selectedDivision: 'leve',
       watchedEventId: 'apex-32',
       playerRanking: { fighterId: null, points: 20, position: null, lastChange: 0 },
+      circuitCampaign: createCircuitCampaign(),
       events: [
         { id: 'apex-32', circuitId: 'apex-league', name: 'Apex Combat League 32', discipline: 'MMA', week: 2, date: 'Semana 2', venue: 'Arena Solaris · Las Vegas', main: 'Aiden Brooks × Kaito Nakamura', status: 'agendado' },
         { id: 'meridian-17', circuitId: 'meridian-boxing', name: 'Meridian Boxing Series 17', discipline: 'Boxe', week: 3, date: 'Semana 3', venue: 'Pavilhão Norte · Lisboa', main: 'Andrés Rojas × Kieran Price', status: 'agendado' },
@@ -219,7 +237,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 13,
+      schemaVersion: 14,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -262,11 +280,19 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 13 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 14 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
         migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
         migrated.world.rivalries = Array.isArray(migrated.world.rivalries) ? migrated.world.rivalries : structuredClone(worldRivalProfiles);
+        const savedCampaign = parsed.world?.circuitCampaign || {};
+        migrated.world.circuitCampaign = {
+          ...createCircuitCampaign(),
+          ...savedCampaign,
+          points: { ...createCircuitCampaign().points, ...(savedCampaign.points || {}) },
+          titles: savedCampaign.titles && typeof savedCampaign.titles === 'object' ? savedCampaign.titles : {},
+          history: Array.isArray(savedCampaign.history) ? savedCampaign.history : [],
+        };
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
         migrated.contracts = Array.isArray(parsed.contracts) ? parsed.contracts : (parsed.fighters || []).map((fighter) => contractFor(fighter, { signing: fighter.signing || 0, salary: fighter.salary, duration: 2 }));
         migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
@@ -357,16 +383,126 @@
     return globalEvents.sort((first, second) => first.week - second.week).slice(0, 7);
   }
   function circuitById(id) { return globalCircuitCatalog.find((circuit) => circuit.id === id); }
+  function circuitCampaign() {
+    if (!state.world.circuitCampaign) state.world.circuitCampaign = createCircuitCampaign();
+    return state.world.circuitCampaign;
+  }
+  function circuitPoints(id) { return Number(circuitCampaign().points[id] || 0); }
+  function circuitTitleThreshold(circuit) { return Math.round(circuit.points * 2.1); }
+  function circuitPlayerRank(circuit) {
+    const points = circuitPoints(circuit.id);
+    if (!points) return null;
+    return Math.max(1, Math.min(12, 13 - Math.floor(points / Math.max(20, circuit.points * .18))));
+  }
+  function circuitChampion(circuit, fighter = selectedFighter()) {
+    const owned = circuitCampaign().titles[circuit.id];
+    if (owned?.fighterId && fighter?.id === owned.fighterId) return { ...fighter, rating: Math.max(74, fighter.rating), record: fighter.record, titleHolder: true };
+    const profile = circuitChampionProfiles[circuit.id] || circuitChampionProfiles['vale-rising'];
+    return { ...profile, discipline: circuit.discipline, division: fighter?.division || 'Leve', titleHolder: false };
+  }
+  function titleChallengeEligibility(circuit, fighter = selectedFighter()) {
+    const campaign = circuitCampaign();
+    const points = circuitPoints(circuit.id);
+    const threshold = circuitTitleThreshold(circuit);
+    const occupied = state.fightBooked || Boolean(activeCompetition()) || ['planned', 'ready', 'live'].includes(eventPlanner().activeEvent?.status);
+    const title = campaign.titles[circuit.id];
+    return {
+      points,
+      threshold,
+      fighter: Boolean(fighter),
+      discipline: fighter?.discipline === circuit.discipline,
+      ready: fighter ? fighterCanCompete(fighter) : false,
+      occupied,
+      titleHeld: title?.fighterId === fighter?.id,
+      eligible: Boolean(fighter && fighter.discipline === circuit.discipline && fighterCanCompete(fighter) && points >= threshold && !occupied && title?.fighterId !== fighter.id),
+    };
+  }
+  function selectCircuit(id) {
+    if (!circuitById(id)) return;
+    circuitCampaign().selectedCircuitId = id;
+    persist(); render();
+  }
+  function scheduleTitleChallenge(id) {
+    const circuit = circuitById(id);
+    const fighter = selectedFighter();
+    if (!circuit || !fighter) { toast('Selecione um atleta contratado para traçar uma rota de título.'); return; }
+    const eligibility = titleChallengeEligibility(circuit, fighter);
+    if (!eligibility.eligible) { toast('A rota de título ainda exige pontos, modalidade compatível, atleta liberado e agenda aberta.'); return; }
+    const travelCost = Math.max(18000, Math.round(circuit.points * 165));
+    if (state.cash < travelCost) { toast('Caixa insuficiente para logística, comissão e taxa da disputa de cinturão.'); return; }
+    const champion = circuitChampion(circuit, fighter);
+    const active = {
+      id: 'title-' + circuit.id + '-' + state.week,
+      offerId: 'title-' + circuit.id,
+      circuitId: circuit.id,
+      titleChallenge: true,
+      beltName: circuit.name + ' · ' + fighter.division,
+      tier: 'DISPUTA DE CINTURÃO',
+      name: circuit.name + ' Title Night',
+      city: circuit.city,
+      icon: '♛',
+      fighterId: fighter.id,
+      fighterName: fighter.name,
+      opponent: champion,
+      week: state.week + 3,
+      status: 'registered',
+      acceptedWeek: state.week,
+      entryFee: travelCost,
+      prize: Math.round(circuit.points * 1050),
+      participation: Math.round(travelCost * .5),
+      reputationGain: 18,
+      fansGain: 3600,
+      pointsGain: Math.round(circuit.points * .75),
+      accent: circuit.accent,
+    };
+    state.cash -= travelCost;
+    competitionCenter().active = active;
+    competitionCenter().history.unshift({ name: active.name, copy: 'Disputa de cinturão confirmada para a Semana ' + active.week, week: state.week });
+    competitionCenter().history = competitionCenter().history.slice(0, 8);
+    circuitCampaign().history.unshift({ circuitId: circuit.id, name: active.name, result: 'Desafio ao campeão agendado', week: state.week });
+    circuitCampaign().history = circuitCampaign().history.slice(0, 10);
+    addLedger('Logística de cinturão: ' + circuit.name, 'Temporada mundial', -travelCost, 'expense');
+    addMessage(fighter.name + ' atingiu a meta de ' + circuit.name + ' e enfrentará ' + champion.name + ' pelo cinturão.');
+    persist(); render(); toast('Disputa de cinturão agendada. O camp passa a priorizar a semana da luta.');
+  }
   function globalCircuitStandings() {
-    const champions = ['Dante Kwan', 'Aiden Brooks', 'Samuel Voss', 'Riku Tanaka', 'Nadia Fares'];
-    return globalCircuitCatalog.map((circuit, index) => ({ ...circuit, champion: champions[index], score: 980 - index * 86 + state.world.cycle * 4 })).sort((first, second) => second.score - first.score);
+    return globalCircuitCatalog.map((circuit, index) => {
+      const champion = circuitChampion(circuit);
+      return {
+        ...circuit,
+        champion: champion.name,
+        score: 980 - index * 86 + state.world.cycle * 4,
+        playerPoints: circuitPoints(circuit.id),
+        playerRank: circuitPlayerRank(circuit),
+        titleHeld: Boolean(circuitCampaign().titles[circuit.id]?.fighterId),
+      };
+    }).sort((first, second) => second.score - first.score);
   }
   function worldMapPanel() {
     const active = activeCompetition();
     const playerCircuit = active ? { name: active.name, city: active.city, mark: 'V', x: active.city === 'Lisboa' ? 50 : 31, y: active.city === 'Lisboa' ? 37 : 66, accent: 'player' } : null;
     const markers = [...globalCircuitCatalog, ...(playerCircuit ? [playerCircuit] : [])];
     const standings = globalCircuitStandings();
-    return `<section class="world-map-section card"><div class="world-map-heading"><div><span class="eyebrow">GLOBAL CIRCUIT NETWORK</span><h2>O palco é <span class="text-gold">o planeta.</span></h2><p>Circuitos autorais conectam cidades, ranking e oportunidades. Selos oficiais podem ser integrados quando houver licenças de marca.</p></div><div class="world-map-live"><span></span>REDE AO VIVO · S${state.week}</div></div><div class="world-map-canvas" role="img" aria-label="Mapa mundial dos circuitos de competição"><svg viewBox="0 0 1000 430" aria-hidden="true"><path d="M75 112l74-48 78 19 21 43-34 41-54-5-29 42-59-18-19-38zM245 220l56 23 18 71-26 88-47-13-22-81zM430 96l86-36 116 18 31 56-70 30-20 67-68-14-45-53zM560 249l83-14 67 45-32 103-79 3-44-73zM746 96l119 15 75 43-42 50-88-15-55 35-49-49zM807 277l78 17 23 60-66 19-49-43z" /></svg><div class="world-map-graticule"></div>${markers.map((circuit) => `<span class="world-map-node ${circuit.accent || 'gold'}" style="--x:${circuit.x};--y:${circuit.y}" aria-label="${escapeHTML(circuit.name)}, ${escapeHTML(circuit.city)}"><b>${escapeHTML(circuit.mark)}</b><small>${escapeHTML(circuit.city)}</small></span>`).join('')}</div><div class="world-circuit-strip">${standings.map((circuit, index) => `<article class="world-circuit-row"><span class="circuit-rank">${index + 1}</span><span class="circuit-mark ${circuit.accent}">${escapeHTML(circuit.mark)}</span><div><strong>${escapeHTML(circuit.name)}</strong><small>${escapeHTML(circuit.city)} · campeão ${escapeHTML(circuit.champion)}</small></div><b>${circuit.score}</b></article>`).join('')}</div></section>`;
+    return `<section class="world-map-section card"><div class="world-map-heading"><div><span class="eyebrow">GLOBAL CIRCUIT NETWORK</span><h2>O palco é <span class="text-gold">o planeta.</span></h2><p>Circuitos autorais conectam cidades, ranking e oportunidades. Selos oficiais podem ser integrados quando houver licenças de marca.</p></div><div class="world-map-live"><span></span>REDE AO VIVO · S${state.week}</div></div><div class="world-map-canvas" role="img" aria-label="Mapa mundial dos circuitos de competição"><svg viewBox="0 0 1000 430" aria-hidden="true"><path d="M75 112l74-48 78 19 21 43-34 41-54-5-29 42-59-18-19-38zM245 220l56 23 18 71-26 88-47-13-22-81zM430 96l86-36 116 18 31 56-70 30-20 67-68-14-45-53zM560 249l83-14 67 45-32 103-79 3-44-73zM746 96l119 15 75 43-42 50-88-15-55 35-49-49zM807 277l78 17 23 60-66 19-49-43z" /></svg><div class="world-map-graticule"></div>${markers.map((circuit) => `<span class="world-map-node ${circuit.accent || 'gold'}" style="--x:${circuit.x};--y:${circuit.y}" aria-label="${escapeHTML(circuit.name)}, ${escapeHTML(circuit.city)}"><b>${escapeHTML(circuit.mark)}</b><small>${escapeHTML(circuit.city)}</small></span>`).join('')}</div><div class="world-circuit-strip">${standings.map((circuit, index) => `<article class="world-circuit-row"><span class="circuit-rank">${index + 1}</span><span class="circuit-mark ${circuit.accent}">${escapeHTML(circuit.mark)}</span><div><strong>${escapeHTML(circuit.name)}</strong><small>${escapeHTML(circuit.city)} · ${circuit.titleHeld ? 'CINTURÃO VALE' : `#${circuit.playerRank || '—'} · ${circuit.playerPoints} PTS`}</small></div><b>${circuit.score}</b></article>`).join('')}</div></section>`;
+  }
+  function seasonCampaignPanel() {
+    const campaign = circuitCampaign();
+    const fighter = selectedFighter();
+    const circuit = circuitById(campaign.selectedCircuitId) || globalCircuitCatalog[0];
+    const champion = circuitChampion(circuit, fighter);
+    const eligibility = titleChallengeEligibility(circuit, fighter);
+    const title = campaign.titles[circuit.id];
+    const totalTitles = Object.keys(campaign.titles).length;
+    const blockedLabel = !fighter ? 'SELECIONE UM ATLETA' : fighter.discipline !== circuit.discipline ? 'EXIGE ' + circuit.discipline.toUpperCase() : eligibility.occupied ? 'AGENDA EM ANDAMENTO' : 'FALTAM ' + Math.max(0, eligibility.threshold - eligibility.points) + ' PONTOS';
+    const action = title?.fighterId === fighter?.id
+      ? `<button class="button secondary" disabled>♛ CINTURÃO CONQUISTADO</button>`
+      : eligibility.eligible
+        ? `<button class="button season-title-button" data-action="schedule-title-challenge" data-circuit="${circuit.id}">DESAFIAR ${escapeHTML(champion.name).toUpperCase()} · ♛</button>`
+        : `<button class="button secondary" disabled>${blockedLabel}</button>`;
+    const history = campaign.history.length
+      ? campaign.history.slice(0, 3).map((entry) => `<div><span>S${entry.week}</span><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.result)}</small></div>`).join('')
+      : '<p>Seu primeiro resultado em circuito será registrado aqui.</p>';
+    return `<section class="season-campaign card"><div class="season-campaign-head"><div><span class="eyebrow">TEMPORADA MUNDIAL · CICLO ${campaign.season}</span><h2>Da vitrine ao<br><span class="text-gold">cinturão.</span></h2><p>Pontos de circuito são independentes do ranking global. Construa uma campanha, alcance a meta e agende uma disputa de título real.</p></div><div class="season-scoreboard"><span>TAÇAS</span><strong>${totalTitles}</strong><small>conquistas ativas</small></div></div><div class="season-route-tabs">${globalCircuitCatalog.map((item) => `<button class="season-route-tab ${item.id === circuit.id ? 'selected' : ''}" data-action="select-circuit" data-circuit="${item.id}"><b>${item.mark}</b><span>${escapeHTML(item.name)}</span><small>${circuitPoints(item.id)} PTS</small></button>`).join('')}</div><div class="season-title-detail"><div class="season-belt-visual ${circuit.accent}"><span>♛</span><small>${escapeHTML(circuit.tier)}</small></div><div class="season-title-copy"><span class="eyebrow">${title?.fighterId === fighter?.id ? 'CAMPEÃO EM ATIVIDADE' : 'PRÓXIMO MARCO'}</span><h3>${escapeHTML(circuit.name)}<br><span>${escapeHTML(fighter?.division || 'Divisão aberta')}</span></h3><p>Campeão: <strong>${escapeHTML(champion.name)}</strong> · ${champion.record} · ${champion.rating} OVR</p></div><div class="season-progress"><div><span>PONTOS NO CIRCUITO</span><strong>${eligibility.points}<em>/${eligibility.threshold}</em></strong></div><div class="season-progress-track"><span style="width:${Math.min(100, (eligibility.points / eligibility.threshold) * 100)}%"></span></div><small>${eligibility.playerRank ? 'posição simulada #' + eligibility.playerRank : 'sem posição no circuito'}</small></div><div class="season-action">${action}<small>Logística e comissão são descontadas ao confirmar a disputa.</small></div></div><div class="season-history"><div class="card-title"><span>Passaporte da temporada</span><small>registro persistente</small></div>${history}</div></section>`;
   }
   function stageWorldBriefing() {
     const inbox = Array.isArray(state.world.inbox) ? state.world.inbox : (state.world.inbox = []);
@@ -563,7 +699,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}${navButton('saves', '▣', 'Saves')}</nav><div class="sidebar-bottom"><strong>Fases 12–13</strong>Arena ao vivo, mundo conectado e carreira protegida</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}${navButton('saves', '▣', 'Saves')}</nav><div class="sidebar-bottom"><strong>EVOLUÇÃO 14</strong>Temporada mundial, rota de título e legado persistente</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -676,7 +812,8 @@
     const hotCopy = hot ? `${hot.archetype} · ${hot.record}` : 'Sem alvo definido';
     const hotSignal = hot?.heat >= 55 ? 'MÍDIA EM ALERTA' : 'OBSERVAÇÃO ATIVA';
     const mapMarkup = worldMapPanel();
-    return `<section class="content world-page"><section class="world-hero card"><div class="world-grid-glow"></div><div class="world-hero-copy"><span class="eyebrow">VALE INTELLIGENCE · REDE GLOBAL</span><h1>O mundo<br><span class="text-gold">não espera.</span></h1><p>Eventos rodam, rivais provocam e parceiros tomam posição. Suas decisões geram consequências no ranking, na mídia e nas próximas oportunidades.</p><div class="world-signal-row"><span><b>${activeInboxMessages().length}</b> decisão(ões) abertas</span><span><b>${state.world.results.length}</b> resultado(s) monitorado(s)</span><span><b>${hot?.heat || 0}%</b> rivalidade em alta</span></div></div><div class="world-radar"><div class="world-radar-ring ring-a"></div><div class="world-radar-ring ring-b"></div><div class="world-radar-ring ring-c"></div><span class="world-radar-core">V</span><i class="world-radar-ping ping-one"></i><i class="world-radar-ping ping-two"></i><small>LIVE<br>NETWORK</small></div></section>${mapMarkup}<section class="world-layout"><article class="card world-inbox"><div class="card-title"><span>Caixa estratégica</span><small>${activeInboxMessages().length} decisão(ões) aguardando</small></div><div class="world-message-list">${messageMarkup}</div></article><section class="world-center-column"><article class="card world-calendar"><div class="card-title"><span>Radar de calendário</span><small>o que move o circuito</small></div><div class="world-calendar-track">${calendarMarkup}</div></article><article class="card world-results"><div class="card-title"><span>Placar do circuito</span><small>últimas transmissões</small></div><div class="world-result-feed">${resultsMarkup}</div></article></section><aside class="world-side"><article class="card rival-command"><div class="rival-command-head"><div><span class="eyebrow">RIVAL MAIS QUENTE</span><h2>${escapeHTML(hot?.name || 'Mercado aberto')}</h2><p>${escapeHTML(hotCopy)}</p></div>${hot ? fighterAvatar(hot, 'profile-portrait') : ''}</div><div class="rival-heat"><span style="width:${hot?.heat || 0}%"></span></div><div class="rival-command-footer"><span>CALOR ${hot?.heat || 0}%</span><span>${hotSignal}</span></div></article><article class="card world-rivals"><div class="card-title"><span>Quadro de rivalidades</span><small>efeito em audiência e mídia</small></div>${rivalsMarkup}</article></aside></section></section>`;
+    const seasonMarkup = seasonCampaignPanel();
+    return `<section class="content world-page"><section class="world-hero card"><div class="world-grid-glow"></div><div class="world-hero-copy"><span class="eyebrow">VALE INTELLIGENCE · REDE GLOBAL</span><h1>O mundo<br><span class="text-gold">não espera.</span></h1><p>Eventos rodam, rivais provocam e parceiros tomam posição. Suas decisões geram consequências no ranking, na mídia e nas próximas oportunidades.</p><div class="world-signal-row"><span><b>${activeInboxMessages().length}</b> decisão(ões) abertas</span><span><b>${state.world.results.length}</b> resultado(s) monitorado(s)</span><span><b>${hot?.heat || 0}%</b> rivalidade em alta</span></div></div><div class="world-radar"><div class="world-radar-ring ring-a"></div><div class="world-radar-ring ring-b"></div><div class="world-radar-ring ring-c"></div><span class="world-radar-core">V</span><i class="world-radar-ping ping-one"></i><i class="world-radar-ping ping-two"></i><small>LIVE<br>NETWORK</small></div></section>${seasonMarkup}${mapMarkup}<section class="world-layout"><article class="card world-inbox"><div class="card-title"><span>Caixa estratégica</span><small>${activeInboxMessages().length} decisão(ões) aguardando</small></div><div class="world-message-list">${messageMarkup}</div></article><section class="world-center-column"><article class="card world-calendar"><div class="card-title"><span>Radar de calendário</span><small>o que move o circuito</small></div><div class="world-calendar-track">${calendarMarkup}</div></article><article class="card world-results"><div class="card-title"><span>Placar do circuito</span><small>últimas transmissões</small></div><div class="world-result-feed">${resultsMarkup}</div></article></section><aside class="world-side"><article class="card rival-command"><div class="rival-command-head"><div><span class="eyebrow">RIVAL MAIS QUENTE</span><h2>${escapeHTML(hot?.name || 'Mercado aberto')}</h2><p>${escapeHTML(hotCopy)}</p></div>${hot ? fighterAvatar(hot, 'profile-portrait') : ''}</div><div class="rival-heat"><span style="width:${hot?.heat || 0}%"></span></div><div class="rival-command-footer"><span>CALOR ${hot?.heat || 0}%</span><span>${hotSignal}</span></div></article><article class="card world-rivals"><div class="card-title"><span>Quadro de rivalidades</span><small>efeito em audiência e mídia</small></div>${rivalsMarkup}</article></aside></section></section>`;
   }
   function rankingTabs() {
     const discipline = state.world.selectedDiscipline;
@@ -1134,6 +1271,25 @@
     center.completed = center.completed.slice(0, 8);
     center.history.unshift({ name: competition.name, copy: won ? 'Campanha concluída com vitória' : 'Campanha concluída com aprendizado', week: state.week });
     center.history = center.history.slice(0, 8);
+    const circuit = circuitById(competition.circuitId);
+    if (circuit) {
+      const campaign = circuitCampaign();
+      const gained = won ? competition.pointsGain : Math.max(8, Math.round(competition.pointsGain * .22));
+      campaign.points[circuit.id] = circuitPoints(circuit.id) + gained;
+      if (competition.titleChallenge) {
+        if (won) {
+          campaign.titles[circuit.id] = { fighterId: fighter.id, fighterName: fighter.name, acquiredWeek: state.week, defenses: 0, beltName: competition.beltName };
+          campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: fighter.name + ' conquistou o cinturão por ' + method, week: state.week });
+          addMessage(fighter.name + ' conquistou o cinturão ' + competition.beltName + ' por ' + method + '.');
+        } else {
+          campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: 'Desafio encerrado por ' + method, week: state.week });
+          addMessage(fighter.name + ' ficou a um passo do cinturão ' + competition.beltName + '.');
+        }
+      } else {
+        campaign.history.unshift({ circuitId: circuit.id, name: competition.name, result: '+' + gained + ' pontos no circuito', week: state.week });
+      }
+      campaign.history = campaign.history.slice(0, 10);
+    }
     const rival = openRivalries().find((entry) => entry.id === competition.opponent.id);
     if (rival) rival.heat = Math.max(0, Math.min(100, rival.heat + (won ? 18 : 12)));
     addMessage(`${competition.name}: ${fighter.name} ${won ? 'transformou o convite em vitória' : 'encerrou a participação'} e deixou uma nova marca no circuito.`);
@@ -1601,7 +1757,7 @@
   }
   function savesView() {
     const slots = loadSaveSlots();
-    return `<section class="content saves-page"><div class="page-heading"><div><div class="eyebrow">Carreira local · fase 13</div><h1>Proteja<br><span class="text-gold">seu legado.</span></h1><p class="page-copy">Três slots locais para guardar momentos decisivos da carreira. O save automático continua ativo neste navegador.</p></div><button class="button secondary" data-nav="home">VOLTAR À CENTRAL</button></div><section class="save-autosave card"><div><span class="eyebrow">AUTOSAVE ATIVO</span><h2>Seu progresso é gravado a cada decisão.</h2><p>Slots manuais servem para preservar bifurcações da carreira antes de uma luta, contratação ou semana importante.</p></div><div class="autosave-status"><span>●</span><strong>ARMAZENAMENTO LOCAL</strong><small>navegador atual</small></div></section><section class="save-slot-grid">${slots.map((slot, index) => `<article class="card save-slot ${slot ? 'occupied' : 'empty'}"><div class="save-slot-top"><span>SLOT 0${index + 1}</span><b>${slot ? 'REGISTRADO' : 'DISPONÍVEL'}</b></div>${slot ? `<div class="save-slot-body"><h2>${escapeHTML(slot.academy)}</h2><p>${escapeHTML(slot.manager)} · Semana ${slot.week}</p><div><span>CAIXA</span><strong>${money(slot.cash)}</strong></div><small>Último save: ${escapeHTML(slot.savedAt)}</small></div><div class="save-slot-actions"><button class="button secondary" data-action="load-save-slot" data-slot="${index}">CARREGAR</button><button class="button" data-action="save-slot" data-slot="${index}">ATUALIZAR</button></div>` : `<div class="save-slot-empty"><span>◇</span><h2>Novo ponto de retorno</h2><p>Guarde a carreira atual neste espaço.</p><button class="button" data-action="save-slot" data-slot="${index}">SALVAR AQUI</button></div>`}</article>`).join('')}</section></section>`;
+    return `<section class="content saves-page"><div class="page-heading"><div><div class="eyebrow">Carreira local · temporada mundial</div><h1>Proteja<br><span class="text-gold">seu legado.</span></h1><p class="page-copy">Três slots locais para guardar momentos decisivos da carreira. O save automático continua ativo neste navegador.</p></div><button class="button secondary" data-nav="home">VOLTAR À CENTRAL</button></div><section class="save-autosave card"><div><span class="eyebrow">AUTOSAVE ATIVO</span><h2>Seu progresso é gravado a cada decisão.</h2><p>Slots manuais servem para preservar bifurcações da carreira antes de uma luta, contratação ou semana importante.</p></div><div class="autosave-status"><span>●</span><strong>ARMAZENAMENTO LOCAL</strong><small>navegador atual</small></div></section><section class="save-slot-grid">${slots.map((slot, index) => `<article class="card save-slot ${slot ? 'occupied' : 'empty'}"><div class="save-slot-top"><span>SLOT 0${index + 1}</span><b>${slot ? 'REGISTRADO' : 'DISPONÍVEL'}</b></div>${slot ? `<div class="save-slot-body"><h2>${escapeHTML(slot.academy)}</h2><p>${escapeHTML(slot.manager)} · Semana ${slot.week}</p><div><span>CAIXA</span><strong>${money(slot.cash)}</strong></div><small>Último save: ${escapeHTML(slot.savedAt)}</small></div><div class="save-slot-actions"><button class="button secondary" data-action="load-save-slot" data-slot="${index}">CARREGAR</button><button class="button" data-action="save-slot" data-slot="${index}">ATUALIZAR</button></div>` : `<div class="save-slot-empty"><span>◇</span><h2>Novo ponto de retorno</h2><p>Guarde a carreira atual neste espaço.</p><button class="button" data-action="save-slot" data-slot="${index}">SALVAR AQUI</button></div>`}</article>`).join('')}</section></section>`;
   }
   function bindEvents() {
     app.querySelectorAll('[data-nav]').forEach((button) => button.addEventListener('click', () => { state.view = button.dataset.nav; persist(); render(); }));
@@ -1621,6 +1777,8 @@
       if (action === 'hire-staff') hireStaff(button.dataset.id);
       if (action === 'accept-sponsor') acceptSponsor(button.dataset.id);
       if (action === 'accept-competition') acceptCompetition(button.dataset.id);
+      if (action === 'select-circuit') selectCircuit(button.dataset.circuit);
+      if (action === 'schedule-title-challenge') scheduleTitleChallenge(button.dataset.circuit);
       if (action === 'resolve-world-message') resolveWorldMessage(button.dataset.id, button.dataset.choice);
       if (action === 'open-negotiation') beginNegotiation(button.dataset.id);
       if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));

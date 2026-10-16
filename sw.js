@@ -1,9 +1,9 @@
-const CACHE_NAME = 'vale-fight-manager-v13-2';
+const CACHE_NAME = 'vale-fight-manager-v14-2';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=13-2',
-  './app.js?v=13-2',
+  './styles.css?v=14-2',
+  './app.js?v=14-2',
   './manifest.webmanifest',
   './assets/vale-fight-manager-logo.png',
   './assets/vale-octagon-arena.png'

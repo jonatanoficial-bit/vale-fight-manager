@@ -19,9 +19,15 @@ O planejamento-base do MVP está organizado em **13 lotes**. Cada lote deve ampl
 12. Fight Engine avançado: transmissão de arena, tokens em movimento, barras de saúde e energia, automação por round, corner nos intervalos, toalha, finalizações e scorecards.
 13. Polimento de lançamento: três slots de save, autosave, PWA offline, acabamento responsivo, redução de movimento e QA de fluxos essenciais.
 
-## Pós-MVP
+14. Temporada mundial e rota de cinturão: pontos por circuito, meta de elegibilidade, campeão autoral, desafio de título agendado, custo de deslocamento, recompensa e posse persistente do cinturão.
 
-As melhorias depois do lote 13 — licenciamento de marcas, cloud save, áudio, IA de torcida, novos continentes e combate 2D mais profundo — estão priorizadas em [FUTURE_VISION.md](FUTURE_VISION.md).
+## Próximas evoluções
+
+15. Defesas de título, unificação de cinturões e rivalidades sazonais.
+16. Fight Night 2D aprofundada: ritmo configurável, replay de momentos e leitura tática de posicionamento.
+17. Produção comercial de evento: card completo, venda por setores, mídia e impacto regional.
+
+Licenciamento de marcas, cloud save, áudio, IA de torcida e novos continentes continuam priorizados em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Regra de evolução
 
