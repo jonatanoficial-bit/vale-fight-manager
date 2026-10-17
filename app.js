@@ -1,4 +1,4 @@
-/* Vale Fight Manager — MVP Fases 1 a 13 + Evolução 14
+/* Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14–15
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -200,6 +200,28 @@
     'pacific-crown': { id: 'riku-tanaka', name: 'Riku Tanaka', initials: 'RT', country: 'Japão', record: '21-2-0', rating: 78, style: 'Quedas e controle' },
     'desert-strike': { id: 'nadia-fares', name: 'Nadia Fares', initials: 'NF', country: 'Emirados Árabes Unidos', record: '19-3-0', rating: 77, style: 'Contra-golpe preciso' },
   };
+  const titleContenderProfiles = {
+    'vale-rising': [
+      { id: 'caio-ventura', name: 'Caio Ventura', initials: 'CV', country: 'Brasil', record: '17-3-0', rating: 76, style: 'Pressão de grade' },
+      { id: 'tariq-mendes', name: 'Tariq Mendes', initials: 'TM', country: 'Portugal', record: '20-4-0', rating: 78, style: 'Controle de distância' },
+    ],
+    'apex-league': [
+      { id: 'kaito-nakamura', name: 'Kaito Nakamura', initials: 'KN', country: 'Japão', record: '19-2-0', rating: 81, style: 'Chutes em volume' },
+      { id: 'marcus-reid', name: 'Marcus Reid', initials: 'MR', country: 'Reino Unido', record: '23-5-0', rating: 82, style: 'Wrestling de pressão' },
+    ],
+    'meridian-boxing': [
+      { id: 'andres-rojas', name: 'Andrés Rojas', initials: 'AR', country: 'Argentina', record: '25-2-0', rating: 82, style: 'Jab e contragolpe' },
+      { id: 'louis-grant', name: 'Louis Grant', initials: 'LG', country: 'Reino Unido', record: '21-3-0', rating: 80, style: 'Volume no corpo' },
+    ],
+    'pacific-crown': [
+      { id: 'asha-rahman', name: 'Asha Rahman', initials: 'AR', country: 'Índia', record: '20-3-0', rating: 80, style: 'Grappling de elite' },
+      { id: 'hyeon-park', name: 'Hyeon Park', initials: 'HP', country: 'Coreia do Sul', record: '18-2-0', rating: 79, style: 'Contra-ataque veloz' },
+    ],
+    'desert-strike': [
+      { id: 'leila-haddad', name: 'Leila Haddad', initials: 'LH', country: 'Marrocos', record: '21-3-0', rating: 79, style: 'Boxe no contragolpe' },
+      { id: 'samir-khan', name: 'Samir Khan', initials: 'SK', country: 'Paquistão', record: '24-4-0', rating: 81, style: 'Pressão de tronco' },
+    ],
+  };
   function createCircuitCampaign() {
     return {
       season: 1,
@@ -207,6 +229,8 @@
       selectedCircuitId: 'vale-rising',
       points: Object.fromEntries(globalCircuitCatalog.map((circuit) => [circuit.id, 0])),
       titles: {},
+      holders: {},
+      legacy: { defenses: 0, unifications: 0, titleFights: 0 },
       history: [],
     };
   }
@@ -237,7 +261,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 14,
+      schemaVersion: 15,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -280,7 +304,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 14 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 15 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
         migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
@@ -291,6 +315,8 @@
           ...savedCampaign,
           points: { ...createCircuitCampaign().points, ...(savedCampaign.points || {}) },
           titles: savedCampaign.titles && typeof savedCampaign.titles === 'object' ? savedCampaign.titles : {},
+          holders: savedCampaign.holders && typeof savedCampaign.holders === 'object' ? savedCampaign.holders : {},
+          legacy: { ...createCircuitCampaign().legacy, ...(savedCampaign.legacy || {}) },
           history: Array.isArray(savedCampaign.history) ? savedCampaign.history : [],
         };
         migrated.fight = parsed.fight ? { ...createFightState(), ...parsed.fight } : createFightState();
@@ -394,9 +420,16 @@
     if (!points) return null;
     return Math.max(1, Math.min(12, 13 - Math.floor(points / Math.max(20, circuit.points * .18))));
   }
+  function titleOwner(title) {
+    return title?.fighterId ? state.fighters.find((fighter) => fighter.id === title.fighterId) || null : null;
+  }
   function circuitChampion(circuit, fighter = selectedFighter()) {
-    const owned = circuitCampaign().titles[circuit.id];
-    if (owned?.fighterId && fighter?.id === owned.fighterId) return { ...fighter, rating: Math.max(74, fighter.rating), record: fighter.record, titleHolder: true };
+    const campaign = circuitCampaign();
+    const owned = campaign.titles[circuit.id];
+    const owner = titleOwner(owned);
+    if (owner) return { ...owner, rating: Math.max(74, owner.rating), record: owner.record, titleHolder: true };
+    const holder = campaign.holders[circuit.id];
+    if (holder?.name) return { ...holder, discipline: circuit.discipline, division: fighter?.division || holder.division || 'Leve', titleHolder: true };
     const profile = circuitChampionProfiles[circuit.id] || circuitChampionProfiles['vale-rising'];
     return { ...profile, discipline: circuit.discipline, division: fighter?.division || 'Leve', titleHolder: false };
   }
@@ -406,6 +439,7 @@
     const threshold = circuitTitleThreshold(circuit);
     const occupied = state.fightBooked || Boolean(activeCompetition()) || ['planned', 'ready', 'live'].includes(eventPlanner().activeEvent?.status);
     const title = campaign.titles[circuit.id];
+    const companyTitle = Boolean(titleOwner(title));
     return {
       points,
       threshold,
@@ -414,8 +448,35 @@
       ready: fighter ? fighterCanCompete(fighter) : false,
       occupied,
       titleHeld: title?.fighterId === fighter?.id,
-      eligible: Boolean(fighter && fighter.discipline === circuit.discipline && fighterCanCompete(fighter) && points >= threshold && !occupied && title?.fighterId !== fighter.id),
+      companyTitle,
+      eligible: Boolean(fighter && fighter.discipline === circuit.discipline && fighterCanCompete(fighter) && points >= threshold && !occupied && !companyTitle),
     };
+  }
+  function ownedCircuitTitles(fighter = selectedFighter()) {
+    if (!fighter) return [];
+    return globalCircuitCatalog.filter((circuit) => circuitCampaign().titles[circuit.id]?.fighterId === fighter.id);
+  }
+  function titleContender(circuit, fighter = selectedFighter(), offset = 0) {
+    const contenders = titleContenderProfiles[circuit.id] || titleContenderProfiles['vale-rising'];
+    const contender = contenders[(Number(circuitCampaign().titles[circuit.id]?.defenses || 0) + offset) % contenders.length];
+    return { ...contender, discipline: circuit.discipline, division: fighter?.division || 'Leve' };
+  }
+  function titleDefenseEligibility(circuit, fighter = selectedFighter()) {
+    const title = circuitCampaign().titles[circuit.id];
+    const occupied = state.fightBooked || Boolean(activeCompetition()) || ['planned', 'ready', 'live'].includes(eventPlanner().activeEvent?.status);
+    return {
+      title,
+      fighter: Boolean(fighter),
+      ownsTitle: title?.fighterId === fighter?.id,
+      ready: fighter ? fighterCanCompete(fighter) : false,
+      occupied,
+      eligible: Boolean(fighter && title?.fighterId === fighter.id && fighterCanCompete(fighter) && !occupied),
+    };
+  }
+  function unificationEligibility(circuit, fighter = selectedFighter()) {
+    const defense = titleDefenseEligibility(circuit, fighter);
+    const partner = ownedCircuitTitles(fighter).find((candidate) => candidate.id !== circuit.id && candidate.discipline === circuit.discipline);
+    return { ...defense, partner, eligible: Boolean(defense.eligible && partner) };
   }
   function selectCircuit(id) {
     if (!circuitById(id)) return;
@@ -465,6 +526,98 @@
     addMessage(fighter.name + ' atingiu a meta de ' + circuit.name + ' e enfrentará ' + champion.name + ' pelo cinturão.');
     persist(); render(); toast('Disputa de cinturão agendada. O camp passa a priorizar a semana da luta.');
   }
+  function scheduleTitleDefense(id) {
+    const circuit = circuitById(id);
+    const fighter = selectedFighter();
+    if (!circuit || !fighter) { toast('Selecione um atleta campeão para programar uma defesa.'); return; }
+    const eligibility = titleDefenseEligibility(circuit, fighter);
+    if (!eligibility.eligible) { toast('A defesa exige o cinturão ativo, atleta liberado e agenda aberta.'); return; }
+    const title = eligibility.title;
+    const defenseNumber = Number(title.defenses || 0) + 1;
+    const travelCost = Math.max(24000, Math.round(circuit.points * 190));
+    if (state.cash < travelCost) { toast('Caixa insuficiente para montar a defesa internacional.'); return; }
+    const opponent = titleContender(circuit, fighter);
+    const active = {
+      id: 'defense-' + circuit.id + '-' + state.week,
+      offerId: 'defense-' + circuit.id,
+      circuitId: circuit.id,
+      titleDefense: true,
+      beltName: circuit.name + ' · ' + fighter.division,
+      tier: 'DEFESA DE CINTURÃO',
+      name: circuit.name + ' · Defesa ' + defenseNumber,
+      city: circuit.city,
+      icon: '♛',
+      fighterId: fighter.id,
+      fighterName: fighter.name,
+      opponent,
+      week: state.week + 2,
+      status: 'registered',
+      acceptedWeek: state.week,
+      entryFee: travelCost,
+      prize: Math.round(circuit.points * 1250),
+      participation: Math.round(travelCost * .54),
+      reputationGain: 15 + defenseNumber * 2,
+      fansGain: 2900 + defenseNumber * 400,
+      pointsGain: Math.round(circuit.points * .48),
+      defenseNumber,
+      accent: circuit.accent,
+    };
+    state.cash -= travelCost;
+    competitionCenter().active = active;
+    competitionCenter().history.unshift({ name: active.name, copy: 'Defesa de cinturão confirmada para a Semana ' + active.week, week: state.week });
+    competitionCenter().history = competitionCenter().history.slice(0, 8);
+    circuitCampaign().history.unshift({ circuitId: circuit.id, name: active.name, result: 'Defesa ' + defenseNumber + ' agendada contra ' + opponent.name, week: state.week });
+    circuitCampaign().history = circuitCampaign().history.slice(0, 10);
+    addLedger('Defesa internacional: ' + circuit.name, 'Temporada mundial', -travelCost, 'expense');
+    addMessage(fighter.name + ' defenderá o cinturão ' + circuit.name + ' contra ' + opponent.name + '.');
+    persist(); render(); toast('Defesa de cinturão confirmada. A mídia mundial já reage ao desafio.');
+  }
+  function scheduleUnification(id) {
+    const circuit = circuitById(id);
+    const fighter = selectedFighter();
+    if (!circuit || !fighter) { toast('Selecione um campeão para propor uma unificação.'); return; }
+    const eligibility = unificationEligibility(circuit, fighter);
+    if (!eligibility.eligible) { toast('A unificação exige dois cinturões ativos da mesma modalidade e agenda aberta.'); return; }
+    const partner = eligibility.partner;
+    const travelCost = Math.max(48000, Math.round((circuit.points + partner.points) * 185));
+    if (state.cash < travelCost) { toast('Caixa insuficiente para produzir a noite de unificação.'); return; }
+    const opponent = titleContender(circuit, fighter, 1);
+    const active = {
+      id: 'unification-' + circuit.id + '-' + partner.id + '-' + state.week,
+      offerId: 'unification-' + circuit.id + '-' + partner.id,
+      circuitId: circuit.id,
+      titleDefense: true,
+      unification: true,
+      unificationCircuitIds: [circuit.id, partner.id],
+      beltName: circuit.name + ' × ' + partner.name + ' · ' + fighter.division,
+      tier: 'UNIFICAÇÃO DE CINTURÕES',
+      name: 'VALE Unified Night · ' + circuit.mark + ' × ' + partner.mark,
+      city: circuit.city,
+      icon: '♛',
+      fighterId: fighter.id,
+      fighterName: fighter.name,
+      opponent,
+      week: state.week + 3,
+      status: 'registered',
+      acceptedWeek: state.week,
+      entryFee: travelCost,
+      prize: Math.round((circuit.points + partner.points) * 1300),
+      participation: Math.round(travelCost * .6),
+      reputationGain: 34,
+      fansGain: 6800,
+      pointsGain: Math.round(circuit.points * .62),
+      accent: 'gold',
+    };
+    state.cash -= travelCost;
+    competitionCenter().active = active;
+    competitionCenter().history.unshift({ name: active.name, copy: 'Unificação marcada para a Semana ' + active.week, week: state.week });
+    competitionCenter().history = competitionCenter().history.slice(0, 8);
+    circuitCampaign().history.unshift({ circuitId: circuit.id, name: active.name, result: 'Unificação proposta: ' + circuit.name + ' + ' + partner.name, week: state.week });
+    circuitCampaign().history = circuitCampaign().history.slice(0, 10);
+    addLedger('Produção de unificação: ' + circuit.name + ' + ' + partner.name, 'Temporada mundial', -travelCost, 'expense');
+    addMessage('A unificação entre ' + circuit.name + ' e ' + partner.name + ' foi anunciada. ' + opponent.name + ' aceitou o desafio.');
+    persist(); render(); toast('Noite de unificação confirmada. Dois cinturões estarão em jogo.');
+  }
   function globalCircuitStandings() {
     return globalCircuitCatalog.map((circuit, index) => {
       const champion = circuitChampion(circuit);
@@ -491,18 +644,29 @@
     const circuit = circuitById(campaign.selectedCircuitId) || globalCircuitCatalog[0];
     const champion = circuitChampion(circuit, fighter);
     const eligibility = titleChallengeEligibility(circuit, fighter);
+    const defense = titleDefenseEligibility(circuit, fighter);
+    const unification = unificationEligibility(circuit, fighter);
     const title = campaign.titles[circuit.id];
+    const currentOwner = titleOwner(title);
+    const titleHeld = title?.fighterId === fighter?.id;
     const totalTitles = Object.keys(campaign.titles).length;
+    const legacy = { ...createCircuitCampaign().legacy, ...(campaign.legacy || {}) };
+    const nextContender = titleHeld ? titleContender(circuit, fighter) : null;
     const blockedLabel = !fighter ? 'SELECIONE UM ATLETA' : fighter.discipline !== circuit.discipline ? 'EXIGE ' + circuit.discipline.toUpperCase() : eligibility.occupied ? 'AGENDA EM ANDAMENTO' : 'FALTAM ' + Math.max(0, eligibility.threshold - eligibility.points) + ' PONTOS';
-    const action = title?.fighterId === fighter?.id
-      ? `<button class="button secondary" disabled>♛ CINTURÃO CONQUISTADO</button>`
+    const action = titleHeld
+      ? `<div class="season-action-buttons">${defense.eligible ? `<button class="button season-title-button" data-action="schedule-title-defense" data-circuit="${circuit.id}">DEFENDER · ${escapeHTML(nextContender.name).toUpperCase()}</button>` : '<button class="button secondary" disabled>AGENDA EM ANDAMENTO</button>'}${unification.eligible ? `<button class="button secondary season-unify-button" data-action="schedule-unification" data-circuit="${circuit.id}">UNIFICAR COM ${escapeHTML(unification.partner.mark)}</button>` : `<small>${ownedCircuitTitles(fighter).length > 1 ? 'Unificação exige cinturões da mesma modalidade.' : 'Conquiste outro cinturão da modalidade para liberar a unificação.'}</small>`}</div>`
+      : eligibility.companyTitle
+        ? `<button class="button secondary" disabled>CINTURÃO NO ELENCO · ${escapeHTML(currentOwner.name).toUpperCase()}</button>`
       : eligibility.eligible
         ? `<button class="button season-title-button" data-action="schedule-title-challenge" data-circuit="${circuit.id}">DESAFIAR ${escapeHTML(champion.name).toUpperCase()} · ♛</button>`
         : `<button class="button secondary" disabled>${blockedLabel}</button>`;
     const history = campaign.history.length
       ? campaign.history.slice(0, 3).map((entry) => `<div><span>S${entry.week}</span><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(entry.result)}</small></div>`).join('')
       : '<p>Seu primeiro resultado em circuito será registrado aqui.</p>';
-    return `<section class="season-campaign card"><div class="season-campaign-head"><div><span class="eyebrow">TEMPORADA MUNDIAL · CICLO ${campaign.season}</span><h2>Da vitrine ao<br><span class="text-gold">cinturão.</span></h2><p>Pontos de circuito são independentes do ranking global. Construa uma campanha, alcance a meta e agende uma disputa de título real.</p></div><div class="season-scoreboard"><span>TAÇAS</span><strong>${totalTitles}</strong><small>conquistas ativas</small></div></div><div class="season-route-tabs">${globalCircuitCatalog.map((item) => `<button class="season-route-tab ${item.id === circuit.id ? 'selected' : ''}" data-action="select-circuit" data-circuit="${item.id}"><b>${item.mark}</b><span>${escapeHTML(item.name)}</span><small>${circuitPoints(item.id)} PTS</small></button>`).join('')}</div><div class="season-title-detail"><div class="season-belt-visual ${circuit.accent}"><span>♛</span><small>${escapeHTML(circuit.tier)}</small></div><div class="season-title-copy"><span class="eyebrow">${title?.fighterId === fighter?.id ? 'CAMPEÃO EM ATIVIDADE' : 'PRÓXIMO MARCO'}</span><h3>${escapeHTML(circuit.name)}<br><span>${escapeHTML(fighter?.division || 'Divisão aberta')}</span></h3><p>Campeão: <strong>${escapeHTML(champion.name)}</strong> · ${champion.record} · ${champion.rating} OVR</p></div><div class="season-progress"><div><span>PONTOS NO CIRCUITO</span><strong>${eligibility.points}<em>/${eligibility.threshold}</em></strong></div><div class="season-progress-track"><span style="width:${Math.min(100, (eligibility.points / eligibility.threshold) * 100)}%"></span></div><small>${eligibility.playerRank ? 'posição simulada #' + eligibility.playerRank : 'sem posição no circuito'}</small></div><div class="season-action">${action}<small>Logística e comissão são descontadas ao confirmar a disputa.</small></div></div><div class="season-history"><div class="card-title"><span>Passaporte da temporada</span><small>registro persistente</small></div>${history}</div></section>`;
+    const championDetail = titleHeld
+      ? `Defesas: <strong>${Number(title.defenses || 0)}</strong> · Próximo desafio: <strong>${escapeHTML(nextContender.name)}</strong> · ${nextContender.rating} OVR`
+      : `Campeão: <strong>${escapeHTML(champion.name)}</strong> · ${champion.record} · ${champion.rating} OVR`;
+    return `<section class="season-campaign card"><div class="season-campaign-head"><div><span class="eyebrow">TEMPORADA MUNDIAL · CICLO ${campaign.season}</span><h2>Da vitrine ao<br><span class="text-gold">legado.</span></h2><p>Pontos de circuito abrem disputas; cinturões exigem defesa. Cada noite de título fica registrada no passaporte da organização.</p></div><div class="season-scoreboard"><span>TAÇAS</span><strong>${totalTitles}</strong><small>conquistas ativas</small></div></div><div class="season-route-tabs">${globalCircuitCatalog.map((item) => `<button class="season-route-tab ${item.id === circuit.id ? 'selected' : ''}" data-action="select-circuit" data-circuit="${item.id}"><b>${item.mark}</b><span>${escapeHTML(item.name)}</span><small>${circuitPoints(item.id)} PTS</small></button>`).join('')}</div><div class="season-title-detail"><div class="season-belt-visual ${circuit.accent}"><span>♛</span><small>${titleHeld ? 'CAMPEÃO' : escapeHTML(circuit.tier)}</small></div><div class="season-title-copy"><span class="eyebrow">${titleHeld ? 'CAMPEÃO EM ATIVIDADE' : eligibility.companyTitle ? 'CAMPEÃO DO ELENCO' : 'PRÓXIMO MARCO'}</span><h3>${escapeHTML(circuit.name)}<br><span>${escapeHTML(fighter?.division || 'Divisão aberta')}</span></h3><p>${championDetail}</p></div><div class="season-progress"><div><span>${titleHeld ? 'LEGADO DE CAMPEÃO' : 'PONTOS NO CIRCUITO'}</span><strong>${titleHeld ? Number(title.defenses || 0) : eligibility.points}<em>${titleHeld ? ' DEFESAS' : '/' + eligibility.threshold}</em></strong></div><div class="season-progress-track"><span style="width:${titleHeld ? Math.min(100, 28 + Number(title.defenses || 0) * 18) : Math.min(100, (eligibility.points / eligibility.threshold) * 100)}%"></span></div><small>${titleHeld ? (title.unified ? 'cinturão unificado' : 'título em defesa') : eligibility.playerRank ? 'posição simulada #' + eligibility.playerRank : 'sem posição no circuito'}</small></div><div class="season-action">${action}<small>Logística, mídia e comissão são descontadas ao confirmar a noite de título.</small></div></div><div class="season-legacy-tray"><div><span>DEFESAS</span><strong>${legacy.defenses}</strong></div><div><span>UNIFICAÇÕES</span><strong>${legacy.unifications}</strong></div><div><span>NOITES DE TÍTULO</span><strong>${legacy.titleFights}</strong></div><p>${titleHeld ? 'O rival foi definido. Uma defesa mal calculada pode encerrar o reinado.' : eligibility.companyTitle ? 'O cinturão já está na academia. Selecione o campeão para conduzir o próximo desafio.' : 'Construa pontos, alcance o campeão e transforme uma vitória em reinado.'}</p></div><div class="season-history"><div class="card-title"><span>Passaporte da temporada</span><small>registro persistente</small></div>${history}</div></section>`;
   }
   function stageWorldBriefing() {
     const inbox = Array.isArray(state.world.inbox) ? state.world.inbox : (state.world.inbox = []);
@@ -699,7 +863,7 @@
     return `<header class="topbar"><div class="manager"><div class="manager-avatar">♛</div><div><div class="overline">Gestor da academia</div><strong>${escapeHTML(state.draft.managerName || 'Novo empresário')}</strong></div></div><div class="resources"><div class="resource cash"><div class="resource-label">💵 Caixa disponível</div><strong>${money(state.cash)}</strong></div><div class="resource"><div class="resource-label">♛ Reputação</div><strong>${state.reputation}</strong></div><div class="resource fans"><div class="resource-label">♟ Fãs</div><strong>${state.fans.toLocaleString('pt-BR')}</strong></div></div><div class="week-chip">SEMANA ${state.week}<small>${state.date}</small></div></header>`;
   }
   function sideBar() {
-    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}${navButton('saves', '▣', 'Saves')}</nav><div class="sidebar-bottom"><strong>EVOLUÇÃO 14</strong>Temporada mundial, rota de título e legado persistente</div></aside>`;
+    return `<aside class="sidebar"><div class="brand"><span class="brand-mark">V</span><div><div class="brand-name">VALE</div><div class="brand-sub">Fight Manager</div></div></div><nav class="nav" aria-label="Módulos principais">${navButton('home', '⌂', 'Central')}${navButton('roster', '♟', 'Lutadores')}${navButton('scouting', '⌕', 'Prospecção')}${navButton('training', '✦', 'Camp')}${navButton('staff', '◌', 'Equipe')}${navButton('negotiation', '♢', 'Negociar')}${navButton('competitions', '♛', 'Competições')}${navButton('events', '▦', 'Eventos')}${navButton('sponsors', '✧', 'Marcas')}${navButton('fight', '⚑', 'Fight Night')}${navButton('rankings', '♜', 'Rankings')}${navButton('world', '◉', 'Mundo')}${navButton('academy', '⌂', 'Academia')}${navButton('finance', '▥', 'Finanças')}${navButton('saves', '▣', 'Saves')}</nav><div class="sidebar-bottom"><strong>EVOLUÇÃO 15</strong>Defesas de título, unificação e legado de campeão</div></aside>`;
   }
   function statCard(label, value, note, color = '') { return `<article class="card stat-card"><span class="stat-label">${label}</span><strong style="${color ? `color:${color}` : ''}">${value}</strong><span class="delta">${note}</span></article>`; }
   function regionalOpponent(fighter) {
@@ -1276,14 +1440,44 @@
       const campaign = circuitCampaign();
       const gained = won ? competition.pointsGain : Math.max(8, Math.round(competition.pointsGain * .22));
       campaign.points[circuit.id] = circuitPoints(circuit.id) + gained;
+      campaign.legacy = { ...createCircuitCampaign().legacy, ...(campaign.legacy || {}) };
       if (competition.titleChallenge) {
         if (won) {
-          campaign.titles[circuit.id] = { fighterId: fighter.id, fighterName: fighter.name, acquiredWeek: state.week, defenses: 0, beltName: competition.beltName };
+          campaign.titles[circuit.id] = { fighterId: fighter.id, fighterName: fighter.name, acquiredWeek: state.week, lastDefendedWeek: null, defenses: 0, unified: false, beltName: competition.beltName };
+          campaign.holders[circuit.id] = { id: fighter.id, name: fighter.name, initials: fighter.initials, country: fighter.country, record: fighter.record, rating: fighter.rating, division: fighter.division };
+          campaign.legacy.titleFights += 1;
           campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: fighter.name + ' conquistou o cinturão por ' + method, week: state.week });
           addMessage(fighter.name + ' conquistou o cinturão ' + competition.beltName + ' por ' + method + '.');
         } else {
+          campaign.holders[circuit.id] = { ...competition.opponent, acquiredWeek: state.week };
+          campaign.legacy.titleFights += 1;
           campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: 'Desafio encerrado por ' + method, week: state.week });
           addMessage(fighter.name + ' ficou a um passo do cinturão ' + competition.beltName + '.');
+        }
+      } else if (competition.titleDefense) {
+        const stakeIds = competition.unificationCircuitIds?.length ? competition.unificationCircuitIds : [circuit.id];
+        campaign.legacy.titleFights += 1;
+        if (won) {
+          stakeIds.forEach((circuitId) => {
+            const title = campaign.titles[circuitId];
+            if (!title) return;
+            title.defenses = Number(title.defenses || 0) + 1;
+            title.lastDefendedWeek = state.week;
+            title.unified = Boolean(title.unified || competition.unification);
+            campaign.holders[circuitId] = { id: fighter.id, name: fighter.name, initials: fighter.initials, country: fighter.country, record: fighter.record, rating: fighter.rating, division: fighter.division };
+          });
+          campaign.legacy.defenses += stakeIds.length;
+          if (competition.unification) campaign.legacy.unifications += 1;
+          const legacyLabel = competition.unification ? 'unificou os cinturões' : 'defendeu o cinturão';
+          campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: fighter.name + ' ' + legacyLabel + ' por ' + method, week: state.week });
+          addMessage(fighter.name + ' ' + legacyLabel + ' em uma noite de título por ' + method + '.');
+        } else {
+          stakeIds.forEach((circuitId) => {
+            delete campaign.titles[circuitId];
+            campaign.holders[circuitId] = { ...competition.opponent, acquiredWeek: state.week };
+          });
+          campaign.history.unshift({ circuitId: circuit.id, name: competition.beltName, result: 'Cinturão perdido por ' + method, week: state.week });
+          addMessage(fighter.name + ' perdeu o cinturão em ' + competition.name + '. A revanche agora faz parte da narrativa.');
         }
       } else {
         campaign.history.unshift({ circuitId: circuit.id, name: competition.name, result: '+' + gained + ' pontos no circuito', week: state.week });
@@ -1779,6 +1973,8 @@
       if (action === 'accept-competition') acceptCompetition(button.dataset.id);
       if (action === 'select-circuit') selectCircuit(button.dataset.circuit);
       if (action === 'schedule-title-challenge') scheduleTitleChallenge(button.dataset.circuit);
+      if (action === 'schedule-title-defense') scheduleTitleDefense(button.dataset.circuit);
+      if (action === 'schedule-unification') scheduleUnification(button.dataset.circuit);
       if (action === 'resolve-world-message') resolveWorldMessage(button.dataset.id, button.dataset.choice);
       if (action === 'open-negotiation') beginNegotiation(button.dataset.id);
       if (action === 'adjust-offer') adjustOffer(button.dataset.field, Number(button.dataset.delta));

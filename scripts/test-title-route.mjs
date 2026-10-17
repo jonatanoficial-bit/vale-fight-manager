@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 const appSource = await readFile('app.js', 'utf8');
 const exportLine = "window.ValeFightManager = { reset: () => resetCareer(), getState: () => structuredClone(state) };";
-const debugLine = "window.ValeFightManager = { reset: () => resetCareer(), getState: () => structuredClone(state), __debug: { state: () => state, startCareer, circuitById, circuitTitleThreshold, scheduleTitleChallenge, resolveCompetitionReady, startFight, finishFight } };";
+const debugLine = "window.ValeFightManager = { reset: () => resetCareer(), getState: () => structuredClone(state), __debug: { state: () => state, startCareer, circuitById, circuitTitleThreshold, scheduleTitleChallenge, scheduleTitleDefense, scheduleUnification, resolveCompetitionReady, startFight, finishFight } };";
 assert.ok(appSource.includes(exportLine), 'A API pública esperada não foi encontrada.');
 
 const node = () => ({
@@ -72,4 +72,28 @@ const fighter = state.fighters[0];
 assert.equal(state.world.circuitCampaign.titles[circuit.id].fighterId, fighter.id, 'A vitória deve registrar o campeão do circuito.');
 assert.equal(state.competitions.active.status, 'complete', 'A disputa deve ser liquidada após o resultado.');
 assert.ok(state.world.circuitCampaign.history.some((entry) => entry.result.includes('conquistou o cinturão')), 'O passaporte deve registrar a conquista.');
-console.log(`Rota de título passou: ${fighter.name} conquistou ${circuit.name} com ${threshold} pontos.`);
+
+debug.scheduleTitleDefense(circuit.id);
+const defense = state.competitions.active;
+assert.equal(defense.titleDefense, true, 'O campeão deve poder programar uma defesa.');
+state.week = defense.week;
+assert.equal(debug.resolveCompetitionReady(), true, 'A defesa deve chegar à Fight Night na semana marcada.');
+debug.startFight();
+debug.finishFight(true, 'decisão dos juízes');
+assert.equal(state.world.circuitCampaign.titles[circuit.id].defenses, 1, 'A vitória deve incrementar a defesa do cinturão.');
+assert.equal(state.world.circuitCampaign.legacy.defenses, 1, 'O legado deve somar uma defesa de título.');
+
+const partner = debug.circuitById('pacific-crown');
+state.world.circuitCampaign.titles[partner.id] = { fighterId: fighter.id, fighterName: fighter.name, acquiredWeek: state.week, defenses: 0, unified: false, beltName: `${partner.name} · ${fighter.division}` };
+state.world.circuitCampaign.holders[partner.id] = { id: fighter.id, name: fighter.name, initials: fighter.initials, country: fighter.country, record: fighter.record, rating: fighter.rating, division: fighter.division };
+debug.scheduleUnification(circuit.id);
+const unification = state.competitions.active;
+assert.equal(unification.unification, true, 'Dois cinturões compatíveis devem liberar uma unificação.');
+state.week = unification.week;
+assert.equal(debug.resolveCompetitionReady(), true, 'A unificação deve chegar à Fight Night na semana marcada.');
+debug.startFight();
+debug.finishFight(true, 'finalização');
+assert.equal(state.world.circuitCampaign.legacy.unifications, 1, 'A vitória deve registrar a unificação no legado.');
+assert.equal(state.world.circuitCampaign.titles[circuit.id].unified, true, 'O primeiro cinturão deve ser marcado como unificado.');
+assert.equal(state.world.circuitCampaign.titles[partner.id].unified, true, 'O segundo cinturão deve ser marcado como unificado.');
+console.log(`Legado de campeão passou: ${fighter.name} conquistou, defendeu e unificou ${circuit.name} + ${partner.name}.`);

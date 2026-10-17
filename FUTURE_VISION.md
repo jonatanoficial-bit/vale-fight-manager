@@ -1,14 +1,13 @@
 # Visão pós-MVP — Vale Fight Manager
 
-Os 13 lotes do MVP estão concluídos e a Evolução 14 já introduziu temporada mundial, pontos por circuito e uma rota de cinturão persistente. Esta é a sequência recomendada para transformar o protótipo em uma experiência premium de longo prazo.
+Os 13 lotes do MVP estão concluídos. As Evoluções 14 e 15 já introduziram temporada mundial, pontos por circuito, rota de cinturão, defesas, unificação e legado persistente. Esta é a sequência recomendada para transformar o protótipo em uma experiência premium de longo prazo.
 
 ## Próximas frentes
 
-1. **Defesas e unificação de títulos** — ampliar a temporada já entregue com defesas de cinturão, unificação, classificatórias, rivalidade por atleta e legado de campeão.
-2. **Fight Night 2D** — sprites ou silhuetas licenciadas/originais, posições no octógono, câmera de transmissão, replay de momentos e ritmo configurável.
-3. **Produção de evento** — card completo, venda por setor, equipe médica, transmissão, imprensa, patrocinadores e impacto regional de cada praça.
-4. **Carreira conectada** — cloud save com autenticação, múltiplos perfis, histórico de temporadas, exportação e comparação de carreira.
-5. **Camada audiovisual** — áudio de arena, narração, trilhas adaptativas, acessibilidade ampliada e idioma adicional.
+1. **Fight Night 2D** — sprites ou silhuetas licenciadas/originais, posições no octógono, câmera de transmissão, replay de momentos e ritmo configurável.
+2. **Produção de evento** — card completo, venda por setor, equipe médica, transmissão, imprensa, patrocinadores e impacto regional de cada praça.
+3. **Carreira conectada** — cloud save com autenticação, múltiplos perfis, histórico de temporadas, exportação e comparação de carreira.
+4. **Camada audiovisual** — áudio de arena, narração, trilhas adaptativas, acessibilidade ampliada e idioma adicional.
 
 ## Marcas e competições reais
 

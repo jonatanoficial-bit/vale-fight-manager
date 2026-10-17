@@ -1,4 +1,4 @@
-# Vale Fight Manager — MVP Fases 1 a 13 + Evolução 14
+# Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14 e 15
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -41,10 +41,11 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - Mapa mundial de circuitos autorais, pontos de competição, cidades e tabela de força dos circuitos. A arquitetura reserva a integração de marcas licenciadas, sem usar logos de terceiros nesta versão.
 - Três slots manuais de carreira, autosave local e shell PWA offline com service worker.
 - Temporada mundial jogável: pontos independentes por circuito, metas de elegibilidade, campeões autorais, rota de cinturão, desafio com custo de deslocamento e conquista persistente no histórico da carreira.
+- Legado de campeão: defesas de título com desafiante definido, perda de cinturão, unificação entre dois títulos compatíveis e placar persistente de defesas, unificações e noites de título.
 
 ## Roadmap
 
-O plano do MVP teve **13 lotes no total**, todos concluídos. Esta versão também entrega a **Evolução 14**, primeira etapa pós-MVP: temporada mundial e rota de cinturão. A visão das próximas evoluções está em [FUTURE_VISION.md](FUTURE_VISION.md).
+O plano do MVP teve **13 lotes no total**, todos concluídos. Esta versão também entrega as **Evoluções 14 e 15**: temporada mundial, rota de cinturão, defesas e unificação. A visão das próximas evoluções está em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Como executar
 

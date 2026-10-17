@@ -1,9 +1,9 @@
-const CACHE_NAME = 'vale-fight-manager-v14-2';
+const CACHE_NAME = 'vale-fight-manager-v15-1';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css?v=14-2',
-  './app.js?v=14-2',
+  './styles.css?v=15-1',
+  './app.js?v=15-1',
   './manifest.webmanifest',
   './assets/vale-fight-manager-logo.png',
   './assets/vale-octagon-arena.png'
@@ -21,6 +21,15 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const isDocument = event.request.mode === 'navigate' || event.request.destination === 'document';
+  if (isDocument) {
+    event.respondWith(fetch(event.request).then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+      return response;
+    }).catch(() => caches.match('./index.html')));
+    return;
+  }
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
     const copy = response.clone();
     caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
