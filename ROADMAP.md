@@ -25,9 +25,11 @@ O planejamento-base do MVP está organizado em **13 lotes**. Cada lote deve ampl
 
 16. Fight Night 2D aprofundada: ritmo configurável antes do sino, relógio de round, leitura tática de posicionamento, movimentação contextual dos tokens e replay persistente de momentos-chave.
 
+17. Produção comercial de eventos: card completo, três setores de ingressos, distribuição de mídia, ativações de patrocínio, custos contratados e impacto regional persistente por praça.
+
 ## Próximas evoluções
 
-17. Produção comercial de evento: card completo, venda por setores, mídia e impacto regional.
+18. Expansão de praças e franquias: novas regiões, capacidade de arena, histórico local e decisões de crescimento por mercado.
 
 Licenciamento de marcas, cloud save, áudio, IA de torcida e novos continentes continuam priorizados em [FUTURE_VISION.md](FUTURE_VISION.md).
 

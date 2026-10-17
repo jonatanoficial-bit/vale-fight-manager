@@ -68,7 +68,7 @@
     return { prospectId: null, status: 'idle', offer: null, seed: 371951, attempts: 0, result: null };
   }
   function createEventPlannerState() {
-    return { venueId: 'vale-arena', promotionId: 'regional', dateOffset: 3, fighterId: null, activeEvent: null, history: [] };
+    return { venueId: 'vale-arena', promotionId: 'regional', ticketProfileId: 'balanced', broadcastId: 'regional-feed', activationId: 'local-partner', cardFormatId: 'standard', dateOffset: 3, fighterId: null, activeEvent: null, history: [] };
   }
   function createTrainingCampState() {
     return {
@@ -160,6 +160,34 @@
     { id: 'local', name: 'Circuito local', cost: 18000, audience: 320, media: 9000, copy: 'Rádio, mídia de bairro e base de fãs.' },
     { id: 'regional', name: 'Campanha regional', cost: 46000, audience: 980, media: 29000, copy: 'Digital, imprensa esportiva e parceiros locais.' },
     { id: 'broadcast', name: 'Noite transmitida', cost: 98000, audience: 2050, media: 82000, copy: 'Cobertura ampliada e pacote de transmissão fictício.' },
+  ];
+  const eventTicketProfiles = [
+    { id: 'access', name: 'Casa cheia', copy: 'Preço de entrada agressivo para ampliar a base local.', priceMultiplier: .82, attendanceMultiplier: 1.1, fanMultiplier: 1.16, accent: 'green' },
+    { id: 'balanced', name: 'Mix equilibrado', copy: 'Arquibancada, experiência premium e margem saudável.', priceMultiplier: 1, attendanceMultiplier: 1, fanMultiplier: 1, accent: 'gold' },
+    { id: 'premium', name: 'Hospitality premium', copy: 'Menos volume, maior tíquete médio e convidados corporativos.', priceMultiplier: 1.28, attendanceMultiplier: .88, fanMultiplier: .88, accent: 'red' },
+  ];
+  const eventBroadcastPackages = [
+    { id: 'regional-feed', name: 'VALE Regional Feed', copy: 'Sinal próprio para o mercado local.', fee: 0, mediaBonus: 0, fanBonus: 70, region: 'Praça-sede', mark: 'VR' },
+    { id: 'national-stream', name: 'Pulse Combat Network', copy: 'Streaming nacional com cobertura de bastidores.', fee: 28000, mediaBonus: 36000, fanBonus: 260, region: 'Brasil', mark: 'PC' },
+    { id: 'international-window', name: 'Atlas Fight Window', copy: 'Janela internacional para o circuito fictício.', fee: 78000, mediaBonus: 99000, fanBonus: 680, region: 'Mercados globais', mark: 'AF' },
+  ];
+  const eventActivationPackages = [
+    { id: 'local-partner', name: 'Parceiro de praça', copy: 'Ativação de marcas locais e hospitalidade leve.', cost: 8000, revenue: 18000, fanBonus: 45, reputation: 0, mark: '01' },
+    { id: 'headline-partner', name: 'Naming partner', copy: 'Marca no octógono, conteúdo e entrega premium.', cost: 26000, revenue: 58000, fanBonus: 140, reputation: 1, mark: '02' },
+    { id: 'global-partner', name: 'Parceiro global', copy: 'Ativação de alto impacto para grandes audiências.', cost: 62000, revenue: 132000, fanBonus: 310, reputation: 3, mark: '03' },
+  ];
+  const eventCardFormats = [
+    { id: 'lean', name: 'Card enxuto', bouts: 3, cost: 12000, operating: 4500, audience: 0, copy: 'Duas preliminares e uma luta principal.' },
+    { id: 'standard', name: 'Card completo', bouts: 5, cost: 32000, operating: 11000, audience: 360, copy: 'Preliminares, co-main e luta principal.' },
+    { id: 'stacked', name: 'Card de gala', bouts: 7, cost: 68000, operating: 24000, audience: 900, copy: 'Mais talentos, narrativa e entrega de transmissão.' },
+  ];
+  const regionalCardMatchups = [
+    { division: 'Peso leve', left: 'Caio Ventura', leftCountry: 'Brasil', right: 'Tariq Mendes', rightCountry: 'Portugal' },
+    { division: 'Peso pena', left: 'Aline Costa', leftCountry: 'Brasil', right: 'Keiko Tanaka', rightCountry: 'Japão' },
+    { division: 'Peso médio', left: 'Mauro Reis', leftCountry: 'Brasil', right: 'Elias Grant', rightCountry: 'Canadá' },
+    { division: 'Peso meio-médio', left: 'Diego Salas', leftCountry: 'México', right: 'Noah Clarke', rightCountry: 'Reino Unido' },
+    { division: 'Peso galo', left: 'Sora Kim', leftCountry: 'Coreia do Sul', right: 'Nina Duarte', rightCountry: 'Brasil' },
+    { division: 'Peso pesado', left: 'Breno Alves', leftCountry: 'Brasil', right: 'Omar Hassan', rightCountry: 'Egito' },
   ];
   function contractFor(fighter, offer = {}) {
     const duration = offer.duration || 2;
@@ -266,7 +294,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 16,
+      schemaVersion: 17,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -302,6 +330,7 @@
       staffCenter: createStaffCenterState(),
       sponsorship: createSponsorshipState(),
       competitions: createCompetitionState(),
+      regionalImpact: {},
     };
   }
 
@@ -309,7 +338,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 16 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 17 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
         migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
@@ -329,6 +358,7 @@
         migrated.contractHistory = Array.isArray(parsed.contractHistory) ? parsed.contractHistory : [];
         migrated.negotiation = parsed.negotiation ? { ...createNegotiationState(), ...parsed.negotiation } : createNegotiationState();
         migrated.eventPlanner = parsed.eventPlanner ? { ...createEventPlannerState(), ...parsed.eventPlanner, history: Array.isArray(parsed.eventPlanner.history) ? parsed.eventPlanner.history : [] } : createEventPlannerState();
+        migrated.regionalImpact = parsed.regionalImpact && typeof parsed.regionalImpact === 'object' ? parsed.regionalImpact : {};
         migrated.trainingCamp = parsed.trainingCamp ? { ...createTrainingCampState(), ...parsed.trainingCamp, weeklyPlan: Array.isArray(parsed.trainingCamp.weeklyPlan) && parsed.trainingCamp.weeklyPlan.length === 7 ? parsed.trainingCamp.weeklyPlan : createTrainingCampState().weeklyPlan, history: Array.isArray(parsed.trainingCamp.history) ? parsed.trainingCamp.history : [] } : createTrainingCampState();
         migrated.scouting = parsed.scouting ? { ...createScoutingState(), ...parsed.scouting, reports: parsed.scouting.reports && typeof parsed.scouting.reports === 'object' ? parsed.scouting.reports : {}, shortlist: Array.isArray(parsed.scouting.shortlist) ? parsed.scouting.shortlist : [], history: Array.isArray(parsed.scouting.history) ? parsed.scouting.history : [] } : createScoutingState();
         migrated.staffCenter = parsed.staffCenter ? { ...createStaffCenterState(), ...parsed.staffCenter, hiredIds: Array.isArray(parsed.staffCenter.hiredIds) ? parsed.staffCenter.hiredIds : [], history: Array.isArray(parsed.staffCenter.history) ? parsed.staffCenter.history : [] } : createStaffCenterState();
@@ -694,23 +724,56 @@
   function scoutTurnaround() { return Math.max(1, 2 - Math.floor(staffBonus('scouting'))); }
   function selectedVenue() { return eventVenues.find((venue) => venue.id === eventPlanner().venueId) || eventVenues[0]; }
   function selectedPromotion() { return promotionPlans.find((plan) => plan.id === eventPlanner().promotionId) || promotionPlans[1]; }
+  function selectedTicketProfile() { return eventTicketProfiles.find((profile) => profile.id === eventPlanner().ticketProfileId) || eventTicketProfiles[1]; }
+  function selectedBroadcastPackage() { return eventBroadcastPackages.find((item) => item.id === eventPlanner().broadcastId) || eventBroadcastPackages[0]; }
+  function selectedActivationPackage() { return eventActivationPackages.find((item) => item.id === eventPlanner().activationId) || eventActivationPackages[0]; }
+  function selectedCardFormat() { return eventCardFormats.find((item) => item.id === eventPlanner().cardFormatId) || eventCardFormats[1]; }
   function eventFighter() {
     const planner = eventPlanner();
     return state.fighters.find((fighter) => fighter.id === planner.fighterId) || selectedFighter();
   }
+  function eventTicketSales(attendance, venue, profile) {
+    const sectors = [
+      { id: 'cage', name: 'Cage-side', share: .14, multiplier: 2.1 },
+      { id: 'lower', name: 'Arquibancada baixa', share: .37, multiplier: 1.18 },
+      { id: 'upper', name: 'Arquibancada alta', share: .49, multiplier: .68 },
+    ];
+    let allocated = 0;
+    return sectors.map((sector, index) => {
+      const sold = index === sectors.length - 1 ? Math.max(0, attendance - allocated) : Math.round(attendance * sector.share);
+      allocated += sold;
+      const price = Math.round(venue.ticket * sector.multiplier * profile.priceMultiplier);
+      return { ...sector, sold, price, revenue: sold * price };
+    });
+  }
+  function buildEventCard(fighter, opponent, format = selectedCardFormat()) {
+    const preliminaries = regionalCardMatchups.slice(0, Math.max(0, format.bouts - 1)).map((match, index) => ({ ...match, slot: index === format.bouts - 2 ? 'CO-MAIN EVENT' : `PRELIMINAR ${index + 1}` }));
+    return [...preliminaries, { slot: 'LUTA PRINCIPAL', division: fighter?.division || 'Peso leve', left: fighter?.name || 'Seu atleta', leftCountry: fighter?.country || 'Brasil', right: opponent?.name || 'Adversário', rightCountry: opponent?.country || 'Brasil', main: true }];
+  }
+  function cityImpact(city) { return state.regionalImpact?.[city] || { shows: 0, fans: 0, reputation: 0, media: 0 }; }
   function eventEstimate(fighter = eventFighter(), venue = selectedVenue(), promotion = selectedPromotion()) {
-    const sponsorBonus = sponsorEventBonus();
-    if (!fighter) return { attendance: 0, gate: 0, media: 0, sponsorBonus, operating: venue.production, purse: 0, totalCost: venue.rental + promotion.cost + venue.production, projected: -(venue.rental + promotion.cost + venue.production) + sponsorBonus };
+    const profile = selectedTicketProfile();
+    const broadcast = selectedBroadcastPackage();
+    const activation = selectedActivationPackage();
+    const cardFormat = selectedCardFormat();
+    const activeSponsorBonus = sponsorEventBonus();
+    const commitment = venue.rental + promotion.cost + broadcast.fee + activation.cost + cardFormat.cost;
+    if (!fighter) return { attendance: 0, gate: 0, media: 0, sponsorBonus: activeSponsorBonus + activation.revenue, activeSponsorBonus, activationRevenue: activation.revenue, operating: venue.production + cardFormat.operating, purse: 0, commitment, totalCost: commitment + venue.production + cardFormat.operating, projected: -(commitment + venue.production + cardFormat.operating) + activeSponsorBonus + activation.revenue, ticketSales: eventTicketSales(0, venue, profile), profile, broadcast, activation, cardFormat, fanProjection: 0, regionalProjection: 0 };
     const marketing = staffBonus('marketing');
     const rivalryHeat = rivalryInfluence(fighter);
-    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience + marketing * 140 + rivalryHeat * 11;
-    const attendance = Math.min(venue.capacity, Math.max(600, Math.round(interest)));
-    const gate = attendance * venue.ticket;
-    const media = promotion.media + Math.round(state.reputation * 330) + Math.round(marketing * 9000) + rivalryHeat * 135;
+    const impact = cityImpact(venue.city);
+    const interest = state.fans * .16 + state.reputation * 34 + fighter.rating * 12 + promotion.audience + cardFormat.audience + marketing * 140 + rivalryHeat * 11 + impact.fans * .025;
+    const attendance = Math.min(venue.capacity, Math.max(600, Math.round(interest * profile.attendanceMultiplier)));
+    const ticketSales = eventTicketSales(attendance, venue, profile);
+    const gate = ticketSales.reduce((sum, sector) => sum + sector.revenue, 0);
+    const media = promotion.media + broadcast.mediaBonus + Math.round(state.reputation * 330) + Math.round(marketing * 9000) + rivalryHeat * 135;
     const purse = 26000 + fighter.rating * 440;
-    const operating = venue.production + Math.round(attendance * 7.5);
-    const totalCost = venue.rental + promotion.cost + operating;
-    return { attendance, gate, media, sponsorBonus, operating, purse, totalCost, projected: gate + media + sponsorBonus - totalCost + purse };
+    const operating = venue.production + cardFormat.operating + Math.round(attendance * 7.5);
+    const sponsorBonus = activeSponsorBonus + activation.revenue;
+    const totalCost = commitment + operating;
+    const fanProjection = Math.round((attendance * .08 + broadcast.fanBonus + activation.fanBonus) * profile.fanMultiplier);
+    const regionalProjection = Math.round(attendance / 500 + broadcast.fanBonus / 70 + activation.reputation * 3);
+    return { attendance, gate, media, sponsorBonus, activeSponsorBonus, activationRevenue: activation.revenue, operating, purse, commitment, totalCost, projected: gate + media + sponsorBonus - totalCost + purse, ticketSales, profile, broadcast, activation, cardFormat, fanProjection, regionalProjection };
   }
   function eventStatusCopy(event) {
     if (!event) return 'Configure seu primeiro card autoral.';
@@ -1182,6 +1245,29 @@
     const history = planner.history.length ? planner.history.slice(0, 3).map((event) => `<div class="event-history-row"><div><strong>${escapeHTML(event.name)}</strong><small>${escapeHTML(event.venueName)} · S${event.week} · ${event.attendance.toLocaleString('pt-BR')} presentes</small></div><strong class="${event.profit >= 0 ? 'text-green' : 'text-red'}">${event.profit >= 0 ? '+' : '−'}${money(Math.abs(event.profit))}</strong></div>`).join('') : '<div class="event-empty">Os resultados dos seus shows aparecerão aqui.</div>';
     return `<section class="content event-page"><div class="page-heading"><div><div class="eyebrow">Produção de eventos · circuito autoral</div><h1>Construa o<br><span class="text-gold">seu show.</span></h1><p class="page-copy">Reserve a arena, escolha a campanha, escale a luta principal e assuma o risco operacional. O resultado entra no caixa somente depois da Fight Night.</p></div><button class="button secondary" data-nav="fight">FIGHT NIGHT</button></div>${activePanel}<section class="event-layout ${locked ? 'is-locked' : ''}"><article class="card event-builder"><div class="card-title"><span>1 · Arena & data</span><small>${locked ? 'produção travada até o show' : 'monte o evento'}</small></div><div class="event-arena-visual"><div><div class="eyebrow">VALE EVENTS</div><h2>${escapeHTML(venue.name)}</h2><p>${escapeHTML(venue.city)} · ${venue.capacity.toLocaleString('pt-BR')} lugares</p></div><span>${venue.badge}</span></div><div class="event-body"><div class="event-section-label">Escolha a praça</div><div class="venue-grid">${eventVenues.map((option) => `<button class="venue-choice ${venue.id === option.id ? 'selected' : ''}" data-action="select-event-venue" data-id="${option.id}" ${locked ? 'disabled' : ''}><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.city)} · ${option.capacity.toLocaleString('pt-BR')} pessoas</small><b>${money(option.rental)}</b></button>`).join('')}</div><div class="event-section-label">Janela de realização</div><div class="date-choice-row">${[2, 3, 4, 5].map((offset) => `<button class="date-choice ${planner.dateOffset === offset ? 'selected' : ''}" data-action="select-event-date" data-offset="${offset}" ${locked ? 'disabled' : ''}><strong>S${state.week + offset}</strong><small>em ${offset} semanas</small></button>`).join('')}</div></div></article><article class="card event-builder"><div class="card-title"><span>2 · Card & promoção</span><small>luta principal jogável</small></div><div class="event-body"><div class="event-section-label">Atleta da luta principal</div>${fighterOptions}<div class="event-section-label">Campanha</div><div class="promotion-grid">${promotionPlans.map((option) => `<button class="promotion-choice ${promotion.id === option.id ? 'selected' : ''}" data-action="select-event-promotion" data-id="${option.id}" ${locked ? 'disabled' : ''}><span>${option.id === 'broadcast' ? '◉' : option.id === 'regional' ? '◈' : '◇'}</span><div><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.copy)}</small></div><b>${money(option.cost)}</b></button>`).join('')}</div><div class="main-event-card">${fighter && opponent ? `<div>${fighterAvatar(fighter, 'portrait')}<strong>${escapeHTML(fighter.name)}</strong><small>${fighterIdentity(fighter)} · ${fighter.record}</small></div><b>VS</b><div>${fighterAvatar(opponent, 'portrait')}<strong>${escapeHTML(opponent.name)}</strong><small>${fighterIdentity(opponent)} · ${opponent.record}</small></div>` : '<span>Selecione um atleta para visualizar a luta principal.</span>'}</div></div></article><aside class="event-sidebar"><article class="card event-projection"><div class="card-title"><span>3 · Projeção</span><small>estimativa transparente</small></div><div class="event-projection-grid"><div><small>PÚBLICO</small><strong>${estimate.attendance.toLocaleString('pt-BR')}</strong><span>de ${venue.capacity.toLocaleString('pt-BR')}</span></div><div><small>BILHETERIA</small><strong>${money(estimate.gate)}</strong><span>${money(venue.ticket)} por ingresso</span></div><div><small>MÍDIA</small><strong>${money(estimate.media)}</strong><span>pacote estimado</span></div><div><small>MARCAS</small><strong>${money(estimate.sponsorBonus)}</strong><span>bônus de parceiros</span></div><div><small>OPERAÇÃO</small><strong class="text-red">${money(estimate.operating)}</strong><span>produção no dia</span></div></div><div class="event-profit"><span>Resultado estimado</span><strong class="${estimate.projected >= 0 ? 'text-green' : 'text-red'}">${estimate.projected >= 0 ? '+' : '−'}${money(Math.abs(estimate.projected))}</strong><small>inclui a bolsa projetada e os parceiros ativos</small></div><button class="button ${fighter && !locked ? '' : 'secondary'}" data-action="plan-event" ${!fighter || locked ? 'disabled' : ''}>CONFIRMAR · ${money(commitCost)}</button><p class="event-disclaimer">A reserva e o marketing são cobrados agora. Bilheteria, mídia, marcas e produção são liquidadas após o combate.</p></article><article class="card event-history"><div class="card-title"><span>Shows concluídos</span><small>${planner.history.length} registro(s)</small></div>${history}</article></aside></section></section>`;
   }
+  function eventPlannerViewPremium() {
+    const planner = eventPlanner();
+    const active = planner.activeEvent;
+    const locked = active && active.status !== 'complete';
+    const fighter = eventFighter();
+    const venue = selectedVenue();
+    const promotion = selectedPromotion();
+    const profile = selectedTicketProfile();
+    const broadcast = selectedBroadcastPackage();
+    const activation = selectedActivationPackage();
+    const cardFormat = selectedCardFormat();
+    const estimate = eventEstimate(fighter, venue, promotion);
+    const opponent = fighter ? regionalOpponent(fighter) : null;
+    const card = buildEventCard(fighter, opponent, cardFormat);
+    const impact = cityImpact(venue.city);
+    const disabled = locked ? 'disabled' : '';
+    const optionButton = (item, selected, action, extra = '') => `<button class="commercial-choice ${selected ? 'selected' : ''}" data-action="${action}" data-id="${item.id}" ${disabled}><span>${item.mark || item.bouts || '◈'}</span><div><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.copy)}</small></div>${extra}</button>`;
+    const fighterOptions = state.fighters.length ? `<div class="event-choice-row">${state.fighters.map((candidate) => `<button class="event-fighter-choice ${fighter?.id === candidate.id ? 'selected' : ''}" data-action="select-event-fighter" data-id="${candidate.id}" ${disabled}>${fighterAvatar(candidate, 'mini-portrait')}<span><strong>${escapeHTML(candidate.name)}</strong><small>${fighterIdentity(candidate)} · ${candidate.discipline} · ${candidate.division}</small></span><b>${candidate.rating} OVR</b></button>`).join('')}</div>` : '<div class="event-empty">Assine um atleta antes de organizar um evento próprio.</div>';
+    const activePanel = active && active.status !== 'complete' ? `<article class="card event-command premium-command"><div class="event-command-top"><div><div class="eyebrow">Produção confirmada · ${escapeHTML(active.broadcastName || 'Feed regional')}</div><h2>${escapeHTML(active.name)}</h2><p>${escapeHTML(eventStatusCopy(active))}</p></div><span class="event-status ${active.status}">${active.status === 'ready' ? 'PORTÕES ABERTOS' : active.status === 'live' ? 'AO VIVO' : 'CONFIRMADO'}</span></div><div class="event-command-grid"><div><small>PRAÇA</small><strong>${escapeHTML(active.venueName)}</strong><span>${escapeHTML(active.city)}</span></div><div><small>DATA</small><strong>SEMANA ${active.week}</strong><span>${active.attendance.toLocaleString('pt-BR')} lugares projetados</span></div><div><small>DISTRIBUIÇÃO</small><strong>${escapeHTML(active.broadcastName || 'VALE Regional Feed')}</strong><span>${escapeHTML(active.activationName || 'Ativação local')}</span></div><div><small>CARD</small><strong>${active.card?.length || active.undercard || 3} LUTAS</strong><span>${escapeHTML(active.cardFormatName || 'Card confirmado')}</span></div></div><div class="event-command-actions">${active.status === 'ready' ? '<button class="button" data-action="open-event-fight">ENTRAR NA FIGHT NIGHT</button>' : '<button class="button secondary" data-action="advance-week">AVANÇAR SEMANA</button>'}<button class="button secondary" data-nav="finance">VER CAIXA</button></div></article>` : '';
+    const history = planner.history.length ? planner.history.slice(0, 3).map((event) => `<div class="event-history-row"><div><strong>${escapeHTML(event.name)}</strong><small>${escapeHTML(event.venueName)} · ${escapeHTML(event.broadcastName || 'Feed local')} · ${event.attendance.toLocaleString('pt-BR')} presentes</small></div><strong class="${event.profit >= 0 ? 'text-green' : 'text-red'}">${event.profit >= 0 ? '+' : '−'}${money(Math.abs(event.profit))}</strong></div>`).join('') : '<div class="event-empty">Os resultados comerciais dos seus shows aparecerão aqui.</div>';
+    const cardRows = card.map((match) => `<div class="show-card-row ${match.main ? 'main' : ''}"><span>${escapeHTML(match.slot)}</span><div><strong>${countryFlag(match.leftCountry)} ${escapeHTML(match.left)}</strong><small>${escapeHTML(match.division)}</small></div><b>VS</b><div><strong>${countryFlag(match.rightCountry)} ${escapeHTML(match.right)}</strong><small>${escapeHTML(match.division)}</small></div></div>`).join('');
+    return `<section class="content event-page event-commercial-page"><div class="page-heading"><div><div class="eyebrow">VALE LIVE · PRODUÇÃO COMERCIAL</div><h1>Todo show<br><span class="text-gold">deixa marca.</span></h1><p class="page-copy">Monte o card, venda cada setor da arena, negocie a distribuição e transforme uma luta em crescimento regional mensurável.</p></div><div class="event-impact-pill"><span>IMPACTO EM ${escapeHTML(venue.city).toUpperCase()}</span><strong>${impact.shows || 0} shows · +${impact.fans || 0} fãs</strong><small>${impact.reputation || 0} pontos de presença regional</small></div></div>${activePanel}<section class="event-commercial-layout ${locked ? 'is-locked' : ''}"><article class="card commercial-builder"><div class="card-title"><span>01 · Praça & audiência</span><small>${locked ? 'produção travada' : 'defina a casa do show'}</small></div><div class="event-arena-visual"><div><div class="eyebrow">VALE EVENTS · ${escapeHTML(venue.badge)}</div><h2>${escapeHTML(venue.name)}</h2><p>${escapeHTML(venue.city)} · ${venue.capacity.toLocaleString('pt-BR')} lugares · ${impact.shows || 0} shows anteriores</p></div><span>${venue.badge}</span></div><div class="event-body"><div class="event-section-label">Escolha a praça</div><div class="venue-grid">${eventVenues.map((option) => `<button class="venue-choice ${venue.id === option.id ? 'selected' : ''}" data-action="select-event-venue" data-id="${option.id}" ${disabled}><strong>${escapeHTML(option.name)}</strong><small>${escapeHTML(option.city)} · ${option.capacity.toLocaleString('pt-BR')} pessoas</small><b>${money(option.rental)}</b></button>`).join('')}</div><div class="event-section-label">Janela de realização</div><div class="date-choice-row">${[2, 3, 4, 5].map((offset) => `<button class="date-choice ${planner.dateOffset === offset ? 'selected' : ''}" data-action="select-event-date" data-offset="${offset}" ${disabled}><strong>S${state.week + offset}</strong><small>em ${offset} semanas</small></button>`).join('')}</div><div class="event-section-label">Estratégia de ingressos</div><div class="commercial-option-grid ticket-profile-grid">${eventTicketProfiles.map((item) => optionButton(item, profile.id === item.id, 'select-event-ticket-profile', `<b>${item.priceMultiplier < 1 ? 'ACESSÍVEL' : item.priceMultiplier > 1 ? 'PREMIUM' : 'MIX'}</b>`)).join('')}</div><div class="ticket-sector-board">${estimate.ticketSales.map((sector) => `<div><span>${escapeHTML(sector.name)}</span><strong>${sector.sold.toLocaleString('pt-BR')}</strong><small>${money(sector.price)} · ${money(sector.revenue)}</small></div>`).join('')}</div></div></article><article class="card commercial-builder commercial-production"><div class="card-title"><span>02 · Card & distribuição</span><small>o produto que chega ao público</small></div><div class="event-body"><div class="event-section-label">Atleta da luta principal</div>${fighterOptions}<div class="event-section-label">Escala do card</div><div class="commercial-option-grid">${eventCardFormats.map((item) => optionButton(item, cardFormat.id === item.id, 'select-event-card-format', `<b>${item.bouts} LUTAS</b>`)).join('')}</div><div class="show-card-list">${cardRows}</div><div class="event-section-label">Campanha & distribuição</div><div class="promotion-grid">${promotionPlans.map((item) => `<button class="promotion-choice ${promotion.id === item.id ? 'selected' : ''}" data-action="select-event-promotion" data-id="${item.id}" ${disabled}><span>${item.id === 'broadcast' ? '◉' : item.id === 'regional' ? '◈' : '◇'}</span><div><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.copy)}</small></div><b>${money(item.cost)}</b></button>`).join('')}</div><div class="commercial-option-grid">${eventBroadcastPackages.map((item) => optionButton(item, broadcast.id === item.id, 'select-event-broadcast', `<b>${money(item.fee)}</b>`)).join('')}</div></div></article><aside class="event-sidebar commercial-sidebar"><article class="card event-projection"><div class="card-title"><span>03 · Receita projetada</span><small>modelo persistente</small></div><div class="event-projection-grid"><div><small>PÚBLICO</small><strong>${estimate.attendance.toLocaleString('pt-BR')}</strong><span>de ${venue.capacity.toLocaleString('pt-BR')}</span></div><div><small>BILHETERIA</small><strong>${money(estimate.gate)}</strong><span>3 setores de venda</span></div><div><small>DISTRIBUIÇÃO</small><strong>${money(estimate.media)}</strong><span>${escapeHTML(broadcast.name)}</span></div><div><small>MARCAS</small><strong>${money(estimate.sponsorBonus)}</strong><span>parceiros + ativação</span></div><div><small>OPERAÇÃO</small><strong class="text-red">${money(estimate.operating)}</strong><span>produção no dia</span></div></div><div class="event-profit"><span>Resultado estimado</span><strong class="${estimate.projected >= 0 ? 'text-green' : 'text-red'}">${estimate.projected >= 0 ? '+' : '−'}${money(Math.abs(estimate.projected))}</strong><small>inclui bolsa, mídia, card e receitas comerciais</small></div><button class="button ${fighter && !locked ? '' : 'secondary'}" data-action="plan-event" ${!fighter || locked ? 'disabled' : ''}>CONFIRMAR · ${money(estimate.commitment)}</button><p class="event-disclaimer">Reserva, card, campanha, distribuição e ativação são contratados agora. Bilheteria, mídia e marcas entram no caixa após a luta principal.</p></article><article class="card commercial-activation"><div class="card-title"><span>04 · Patrocínio do show</span><small>contrapartida comercial</small></div><div class="activation-list">${eventActivationPackages.map((item) => optionButton(item, activation.id === item.id, 'select-event-activation', `<b>+${money(item.revenue)}</b>`)).join('')}</div></article><article class="card event-history"><div class="card-title"><span>Shows concluídos</span><small>${planner.history.length} registro(s)</small></div>${history}</article></aside></section></section>`;
+  }
   function chartBars() {
     const incomes = [48, 56, 61, 55, 68, 73, 77, 84];
     const expenses = [22, 25, 29, 27, 34, 31, 38, 36];
@@ -1208,7 +1294,7 @@
     let view = homeView();
     if (state.view === 'roster') view = rosterView();
     if (state.view === 'negotiation') view = negotiationView();
-    if (state.view === 'events') view = eventPlannerView();
+    if (state.view === 'events') view = eventPlannerViewPremium();
     if (state.view === 'fight') view = fightViewPremium();
     if (state.view === 'rankings') view = rankingsView();
     if (state.view === 'academy') view = academyView();
@@ -1550,6 +1636,26 @@
     state.eventPlanner.promotionId = id;
     persist(); render();
   }
+  function selectEventTicketProfile(id) {
+    if (!eventTicketProfiles.some((profile) => profile.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.ticketProfileId = id;
+    persist(); render();
+  }
+  function selectEventBroadcast(id) {
+    if (!eventBroadcastPackages.some((item) => item.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.broadcastId = id;
+    persist(); render();
+  }
+  function selectEventActivation(id) {
+    if (!eventActivationPackages.some((item) => item.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.activationId = id;
+    persist(); render();
+  }
+  function selectEventCardFormat(id) {
+    if (!eventCardFormats.some((item) => item.id === id) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
+    state.eventPlanner.cardFormatId = id;
+    persist(); render();
+  }
   function selectEventDate(offset) {
     if (![2, 3, 4, 5].includes(offset) || eventPlanner().activeEvent?.status === 'planned' || eventPlanner().activeEvent?.status === 'ready' || eventPlanner().activeEvent?.status === 'live') return;
     state.eventPlanner.dateOffset = offset;
@@ -1571,9 +1677,9 @@
     if (!fighterCanCompete(fighter)) { toast(`${fighter.name} está em recuperação. Aguarde a liberação médica antes de confirmar o show.`); return; }
     const venue = selectedVenue();
     const promotion = selectedPromotion();
-    const reservation = venue.rental + promotion.cost;
-    if (state.cash < reservation) { toast('Caixa insuficiente para reservar a arena e ativar a campanha.'); return; }
     const estimate = eventEstimate(fighter, venue, promotion);
+    const reservation = estimate.commitment;
+    if (state.cash < reservation) { toast('Caixa insuficiente para reservar a arena e ativar a campanha.'); return; }
     const opponent = regionalOpponent(fighter);
     const sequence = planner.history.length + 1;
     const event = {
@@ -1593,34 +1699,59 @@
       attendance: estimate.attendance,
       gate: estimate.gate,
       media: estimate.media,
+      ticketSales: estimate.ticketSales,
+      ticketProfileId: estimate.profile.id,
+      ticketProfileName: estimate.profile.name,
+      broadcastId: estimate.broadcast.id,
+      broadcastName: estimate.broadcast.name,
+      broadcastRegion: estimate.broadcast.region,
+      activationId: estimate.activation.id,
+      activationName: estimate.activation.name,
+      activationRevenue: estimate.activationRevenue,
+      activeSponsorBonus: estimate.activeSponsorBonus,
+      sponsorBonus: estimate.sponsorBonus,
+      cardFormatId: estimate.cardFormat.id,
+      cardFormatName: estimate.cardFormat.name,
+      card: buildEventCard(fighter, opponent, estimate.cardFormat),
+      fanProjection: estimate.fanProjection,
+      regionalProjection: estimate.regionalProjection,
       operating: estimate.operating,
       purse: estimate.purse,
       reservation,
-      undercard: promotion.id === 'broadcast' ? 5 : promotion.id === 'regional' ? 4 : 3,
+      undercard: estimate.cardFormat.bouts,
     };
     state.cash -= reservation;
     state.selectedFighterId = fighter.id;
     state.eventPlanner.activeEvent = event;
     addLedger(`Reserva: ${event.name}`, `Arena · ${venue.name}`, -venue.rental, 'expense');
     addLedger(`Campanha: ${promotion.name}`, 'Promoção de evento', -promotion.cost, 'expense');
+    if (estimate.cardFormat.cost) addLedger(`Card: ${estimate.cardFormat.name}`, `${estimate.cardFormat.bouts} lutas contratadas`, -estimate.cardFormat.cost, 'expense');
+    if (estimate.broadcast.fee) addLedger(`Distribuição: ${estimate.broadcast.name}`, 'Janela de exibição contratada', -estimate.broadcast.fee, 'expense');
+    if (estimate.activation.cost) addLedger(`Ativação: ${estimate.activation.name}`, 'Entrega comercial do evento', -estimate.activation.cost, 'expense');
     addMessage(`${event.name} foi confirmado na ${venue.name} para a Semana ${event.week}. ${fighter.name} fará a luta principal contra ${opponent.name}.`);
     persist(); render(); toast('Show confirmado. Custos de reserva e campanha foram aplicados.');
   }
   function settlePromotedEvent(event, won) {
     if (!event || event.status === 'complete') return;
-    const sponsorBonus = sponsorEventBonus();
+    const sponsorBonus = Number.isFinite(event.sponsorBonus) ? event.sponsorBonus : sponsorEventBonus();
     const profit = event.gate + event.media + sponsorBonus - event.operating;
     state.cash += event.gate + event.media + sponsorBonus - event.operating;
-    state.fans += Math.round(event.attendance * .08) + (won ? 180 : 70);
-    state.reputation += won ? 4 : 1;
+    const fanGrowth = (event.fanProjection || Math.round(event.attendance * .08)) + (won ? 180 : 70);
+    const reputationGain = (won ? 4 : 1) + (event.activationId === 'global-partner' ? 3 : event.activationId === 'headline-partner' ? 1 : 0);
+    state.fans += fanGrowth;
+    state.reputation += reputationGain;
+    const localImpact = cityImpact(event.city);
+    state.regionalImpact[event.city] = { shows: localImpact.shows + 1, fans: localImpact.fans + fanGrowth, reputation: localImpact.reputation + reputationGain, media: localImpact.media + event.media };
     event.status = 'complete';
     event.profit = profit;
     event.result = won ? 'luta principal vencida' : 'luta principal perdida';
+    event.fanGrowth = fanGrowth;
+    event.reputationGain = reputationGain;
     state.eventPlanner.history.unshift({ ...event });
     state.eventPlanner.history = state.eventPlanner.history.slice(0, 6);
-    addLedger(`Bilheteria: ${event.name}`, `${event.attendance.toLocaleString('pt-BR')} presentes`, event.gate, 'income');
-    addLedger(`Mídia: ${event.promotionName}`, 'Direitos locais simulados', event.media, 'income');
-    if (sponsorBonus) addLedger('Ativação de marcas', `${activeSponsors().length} parceiro(s) no evento`, sponsorBonus, 'income');
+    addLedger(`Bilheteria: ${event.name}`, `${event.attendance.toLocaleString('pt-BR')} presentes · ${event.ticketProfileName || 'setores'}`, event.gate, 'income');
+    addLedger(`Distribuição: ${event.broadcastName || event.promotionName}`, `${event.broadcastRegion || 'Direitos locais'} · receita de mídia`, event.media, 'income');
+    if (sponsorBonus) addLedger(`Marcas: ${event.activationName || 'Parceiros ativos'}`, `${activeSponsors().length} parceiro(s) + ativação comercial`, sponsorBonus, 'income');
     addLedger(`Produção: ${event.name}`, 'Equipe, arbitragem e operação', -event.operating, 'expense');
     addMessage(`${event.name} encerrou com ${event.attendance.toLocaleString('pt-BR')} presentes e ${profit >= 0 ? 'resultado positivo' : 'resultado negativo'} de ${money(Math.abs(profit))}.`);
   }
@@ -2062,6 +2193,10 @@
       if (action === 'submit-offer') submitOffer();
       if (action === 'select-event-venue') selectEventVenue(button.dataset.id);
       if (action === 'select-event-promotion') selectEventPromotion(button.dataset.id);
+      if (action === 'select-event-ticket-profile') selectEventTicketProfile(button.dataset.id);
+      if (action === 'select-event-broadcast') selectEventBroadcast(button.dataset.id);
+      if (action === 'select-event-activation') selectEventActivation(button.dataset.id);
+      if (action === 'select-event-card-format') selectEventCardFormat(button.dataset.id);
       if (action === 'select-event-date') selectEventDate(Number(button.dataset.offset));
       if (action === 'select-event-fighter') selectEventFighter(button.dataset.id);
       if (action === 'plan-event') planEvent();

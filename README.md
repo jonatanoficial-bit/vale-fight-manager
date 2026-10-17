@@ -1,4 +1,4 @@
-# Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14 a 16
+# Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14 a 17
 
 Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta entrega trabalha com atletas, eventos e organizações fictícios e salva a carreira no `localStorage` do navegador.
 
@@ -43,10 +43,12 @@ Vertical slice jogável do simulador de gestão de carreiras de boxe e MMA. Esta
 - Temporada mundial jogável: pontos independentes por circuito, metas de elegibilidade, campeões autorais, rota de cinturão, desafio com custo de deslocamento e conquista persistente no histórico da carreira.
 - Legado de campeão: defesas de título com desafiante definido, perda de cinturão, unificação entre dois títulos compatíveis e placar persistente de defesas, unificações e noites de título.
 - Fight Night 2D aprofundada: escolha de ritmo antes do sino, relógio de round, leitura visual de distância/grade/clinch/solo, tokens que se reposicionam e replay persistente dos momentos-chave.
+- Produção comercial de eventos: card completo configurável, setores cage-side/arquibancada baixa/alta, estratégia de preço, pacote de distribuição, ativação de patrocínio e projeção financeira transparente.
+- Cada show próprio agora persiste o card, os setores vendidos, os contratos comerciais e o impacto de fãs, reputação e mídia na praça que recebeu o evento.
 
 ## Roadmap
 
-O plano do MVP teve **13 lotes no total**, todos concluídos. Esta versão também entrega as **Evoluções 14, 15 e 16**: temporada mundial, rota de cinturão, legado de campeão e Fight Night 2D aprofundada. A visão das próximas evoluções está em [FUTURE_VISION.md](FUTURE_VISION.md).
+O plano do MVP teve **13 lotes no total**, todos concluídos. Esta versão também entrega as **Evoluções 14 a 17**: temporada mundial, rota de cinturão, legado de campeão, Fight Night 2D aprofundada e produção comercial de eventos. A visão das próximas evoluções está em [FUTURE_VISION.md](FUTURE_VISION.md).
 
 ## Como executar
 
@@ -61,14 +63,17 @@ Depois acesse `http://localhost:4173`.
 ## Verificação
 
 ```powershell
-npm run verify
+node scripts/verify.mjs
+node scripts/test-title-route.mjs
+node scripts/test-fight-night.mjs
+node scripts/test-event-commercial.mjs
 ```
 
 O comando garante a presença dos artefatos essenciais da entrega. Os comportamentos centrais são executados diretamente no navegador.
 
 ## Limites atuais
 
-Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, venda de ingressos individual por setor ou entidades reais. A Fight Night é uma simulação automatizada de gestão; o ranking e os circuitos são independentes e construídos apenas com conteúdo fictício.
+Ainda não há animação 2D quadro a quadro, cloud save, áudio, renovação/rescisão avançadas, mapa de assentos individual ou entidades reais. A Fight Night é uma simulação automatizada de gestão; o ranking e os circuitos são independentes e construídos apenas com conteúdo fictício.
 
 ## Créditos de asset
 

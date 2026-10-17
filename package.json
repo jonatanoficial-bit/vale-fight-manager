@@ -1,12 +1,12 @@
 {
   "name": "vale-fight-manager",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
-  "description": "Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14, 15 e 16",
+  "description": "Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14 a 17",
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "verify": "node scripts/verify.mjs",
-    "test": "node scripts/verify.mjs && node scripts/test-title-route.mjs && node scripts/test-fight-night.mjs"
+    "test": "node scripts/verify.mjs && node scripts/test-title-route.mjs && node scripts/test-fight-night.mjs && node scripts/test-event-commercial.mjs"
   },
   "engines": { "node": ">=20" }
 }
