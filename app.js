@@ -1,4 +1,4 @@
-/* Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14–15
+/* Vale Fight Manager — MVP Fases 1 a 13 + Evoluções 14–16
    Dados, atletas e organizações desta demonstração são fictícios. */
 (function () {
   'use strict';
@@ -55,9 +55,14 @@
     counter: { label: 'Contra-golpe', icon: '↶', copy: 'Responde ao avanço rival.', offense: 1.12, guard: 1.18, stamina: 8, animation: 'counter' },
     conserve: { label: 'Conservar', icon: 'ϟ', copy: 'Recupera energia e paciência.', offense: .55, guard: 1.25, stamina: -10, animation: 'recover' },
   };
+  const fightPaces = {
+    measured: { label: 'Cadenciado', copy: 'Mais leitura de distância e menos trocas por round.', exchanges: 4, delay: 1550, seconds: 75 },
+    broadcast: { label: 'Transmissão', copy: 'Ritmo de card principal, equilibrando pressão e leitura.', exchanges: 5, delay: 1200, seconds: 60 },
+    relentless: { label: 'Alta pressão', copy: 'Trocas rápidas, mais desgaste e viradas possíveis.', exchanges: 6, delay: 850, seconds: 50 },
+  };
 
   function createFightState() {
-    return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, exchangesPerRound: 5, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', cornerStrategy: 'defensive', roundScores: [], scorecards: null, animationTick: 0, intervalNote: null, result: null, seed: 94117 };
+    return { status: 'idle', readyWeek: null, round: 1, exchanges: 0, exchangesPerRound: 5, maxRounds: 3, playerHealth: 100, playerStamina: 100, opponentHealth: 100, opponentStamina: 100, momentum: 0, log: [], opponent: null, lastAction: 'ready', cornerStrategy: 'defensive', roundScores: [], scorecards: null, animationTick: 0, intervalNote: null, result: null, seed: 94117, pace: 'broadcast', roundSeconds: 300, elapsedSeconds: 0, position: 'long-range', positionOwner: 'neutral', replay: [], lastImpact: null };
   }
   function createNegotiationState() {
     return { prospectId: null, status: 'idle', offer: null, seed: 371951, attempts: 0, result: null };
@@ -261,7 +266,7 @@
 
   function makeSeed() {
     return {
-      schemaVersion: 15,
+      schemaVersion: 16,
       complete: false,
       view: 'home',
       onboardingStep: 1,
@@ -304,7 +309,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (parsed && parsed.schemaVersion >= 1) {
-        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 15 };
+        const migrated = { ...makeSeed(), ...parsed, schemaVersion: 16 };
         migrated.world = parsed.world ? { ...createWorldState(), ...parsed.world } : createWorldState();
         migrated.world.events = Array.isArray(migrated.world.events) ? migrated.world.events.map((event, index) => ({ ...event, week: Number.isFinite(event.week) ? event.week : index + 2 })) : createWorldState().events;
         migrated.world.inbox = Array.isArray(migrated.world.inbox) ? migrated.world.inbox : structuredClone(createWorldState().inbox);
@@ -1037,7 +1042,7 @@
   }
   function beginFightAutomation() {
     if (fightAutomationTimer !== null || typeof window.setInterval !== 'function') return;
-    fightAutomationTimer = window.setInterval(() => autoFightTick(), 1200);
+    fightAutomationTimer = window.setInterval(() => autoFightTick(), activeFightPace(state.fight).delay);
   }
   function syncFightAutomation() {
     if (state.fight?.status === 'active') beginFightAutomation();
@@ -1060,19 +1065,66 @@
       return { judge: judge + 1, player, opponent };
     });
   }
+  function activeFightPace(fight) {
+    return fightPaces[fight.pace] || fightPaces.broadcast;
+  }
+  function fightClock(fight) {
+    const seconds = Math.max(0, Math.min(300, Math.round(fight.roundSeconds ?? 300)));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+  function fightPositionMeta(fight) {
+    const positions = {
+      'long-range': { label: 'DISTÂNCIA LONGA', copy: 'Ambos medem o espaço e a entrada.', player: [33, 63], opponent: [67, 37] },
+      center: { label: 'CENTRO DO OCTÓGONO', copy: 'A disputa pelo centro muda o ritmo.', player: [43, 56], opponent: [57, 44] },
+      'cage-player': { label: 'VALE NA GRADE', copy: 'Seu atleta trabalha preso à grade.', player: [24, 52], opponent: [43, 52] },
+      'cage-opponent': { label: 'RIVAL NA GRADE', copy: 'A pressão abre espaço para o ataque.', player: [57, 49], opponent: [78, 49] },
+      clinch: { label: 'CLINCH', copy: 'Corpos conectados, controle e desgaste.', player: [48, 52], opponent: [53, 49] },
+      'ground-player': { label: 'CONTROLE NO SOLO', copy: 'VALE estabiliza a posição no chão.', player: [53, 52], opponent: [49, 52] },
+      'ground-opponent': { label: 'DEFESA NO SOLO', copy: 'O rival busca consolidar a posição.', player: [47, 52], opponent: [51, 52] },
+    };
+    return positions[fight.position] || positions['long-range'];
+  }
+  function resolveFightPosition(fight, playerWins, playerTactic, rivalTactic) {
+    let position = 'center';
+    if (playerTactic === 'takedown') position = playerWins ? 'ground-player' : 'ground-opponent';
+    else if (rivalTactic === 'takedown') position = playerWins ? 'ground-player' : 'ground-opponent';
+    else if (playerTactic === 'clinch' || rivalTactic === 'clinch') position = 'clinch';
+    else if (playerTactic === 'defensive' || playerTactic === 'conserve') position = playerWins ? 'long-range' : 'cage-player';
+    else if (rivalTactic === 'defensive' || rivalTactic === 'conserve') position = playerWins ? 'cage-opponent' : 'long-range';
+    else position = playerWins ? 'cage-opponent' : 'cage-player';
+    fight.position = position;
+    fight.positionOwner = playerWins ? 'player' : 'opponent';
+    return fightPositionMeta(fight);
+  }
+  function registerFightReplay(fight, entry) {
+    fight.replay = Array.isArray(fight.replay) ? fight.replay : [];
+    fight.replay.unshift({ round: fight.round, exchange: fight.exchanges, clock: fightClock(fight), ...entry });
+    fight.replay = fight.replay.slice(0, 8);
+  }
+  function fightPaceOptions(fight) {
+    return `<div class="fight-pace-grid">${Object.entries(fightPaces).map(([key, pace]) => `<button class="fight-pace ${fight.pace === key ? 'selected' : ''}" data-action="set-fight-pace" data-pace="${key}"><span>${key === 'measured' ? 'I' : key === 'broadcast' ? 'II' : 'III'}</span><strong>${pace.label}</strong><small>${pace.copy}</small></button>`).join('')}</div>`;
+  }
   function fightStrategyOptions(fight) {
     return `<div class="corner-strategy-grid">${Object.entries(fightTactics).map(([key, tactic]) => `<button class="corner-strategy ${fight.cornerStrategy === key ? 'selected' : ''}" data-action="set-fight-strategy" data-tactic="${key}"><span>${tactic.icon}</span><strong>${tactic.label}</strong><small>${tactic.copy}</small></button>`).join('')}</div>`;
   }
   function premiumFightArena(fight, fighter, opponent) {
-    const advantage = Math.max(-24, Math.min(24, fight.momentum * .18));
+    const position = fightPositionMeta(fight);
     const announcement = fight.status === 'interval' ? `FIM DO ROUND ${Math.max(1, fight.round - 1)}` : fight.status === 'active' ? `ROUND ${fight.round}` : fight.status === 'complete' ? (fight.result?.won ? 'VITÓRIA VALE' : 'RESULTADO OFICIAL') : 'FIGHT NIGHT';
     const liveNote = fight.status === 'active' ? `SIMULAÇÃO AO VIVO · TROCA ${Math.min(fight.exchangesPerRound, (fight.exchanges % fight.exchangesPerRound) + 1)} DE ${fight.exchangesPerRound}` : fight.status === 'interval' ? 'INTERVALO · O CORNER PODE AJUSTAR A ESTRATÉGIA' : 'ARENA PRONTA PARA O SINO';
-    return `<section class="premium-fight-arena ${fight.status}" style="--player-x:${28 + advantage}%;--opponent-x:${72 + advantage}%"><div class="fight-broadcast-bar"><span>VALE GLOBAL FEED</span><strong>${escapeHTML(liveNote)}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="round-announcement"><span>${escapeHTML(announcement)}</span><small>${fight.status === 'active' ? 'O combate avança automaticamente' : fight.status === 'interval' ? 'Decisão de corner disponível' : 'Pronto para começar'}</small></div><div class="octagon-topdown"><div class="octagon-grid"></div><div class="fight-token player-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(fighter, 'arena-avatar')}</span><b>VALE</b></div><div class="fight-token opponent-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(opponent, 'arena-avatar')}</span><b>RIVAL</b></div><div class="fight-clash ${fight.status === 'active' ? 'live' : ''}">✦</div></div><div class="premium-combatant-bars">${fightCombatant(fighter, 'player', fight.playerHealth ?? 100, fight.playerStamina ?? 100)}<div class="fight-center-status"><b>${fight.status === 'active' ? `${fight.round}:00` : fight.status === 'interval' ? 'INTERVALO' : 'PRÉ-LUTA'}</b><span>${fight.momentum > 14 ? 'VALE PRESSIONA' : fight.momentum < -14 ? 'RIVAL PRESSIONA' : 'LUTA EQUILIBRADA'}</span></div>${fightCombatant(opponent, 'opponent', fight.opponentHealth ?? 100, fight.opponentStamina ?? 100)}</div></section>`;
+    const critical = (fight.playerHealth ?? 100) <= 30 ? '<span class="fight-critical">ATLETA EM RISCO</span>' : '';
+    return `<section class="premium-fight-arena ${fight.status} position-${fight.position || 'long-range'}" style="--player-x:${position.player[0]}%;--player-y:${position.player[1]}%;--opponent-x:${position.opponent[0]}%;--opponent-y:${position.opponent[1]}%"><div class="fight-broadcast-bar"><span>VALE GLOBAL FEED</span><strong>${escapeHTML(liveNote)}</strong><span>${fighter.discipline.toUpperCase()}</span></div><div class="round-announcement"><span>${escapeHTML(announcement)}</span><small>${fight.status === 'active' ? `${fightClock(fight)} RESTANTES · O COMBATE AVANÇA AUTOMATICAMENTE` : fight.status === 'interval' ? 'DECISÃO DE CORNER DISPONÍVEL' : 'PRONTO PARA COMEÇAR'}</small></div><div class="octagon-topdown"><div class="octagon-grid"></div><div class="arena-position-read ${fight.positionOwner || 'neutral'}"><span>LEITURA TÁTICA</span><strong>${position.label}</strong><small>${position.copy}</small></div><div class="fight-token player-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(fighter, 'arena-avatar')}</span><b>VALE</b></div><div class="fight-token opponent-token ${fight.status === 'active' ? 'moving' : ''}"><i></i><span>${fighterAvatar(opponent, 'arena-avatar')}</span><b>RIVAL</b></div><div class="fight-clash ${fight.status === 'active' ? 'live' : ''}">✦</div></div><div class="premium-combatant-bars">${fightCombatant(fighter, 'player', fight.playerHealth ?? 100, fight.playerStamina ?? 100)}<div class="fight-center-status"><b>${fight.status === 'active' ? fightClock(fight) : fight.status === 'interval' ? 'INTERVALO' : 'PRÉ-LUTA'}</b><span>${fight.momentum > 14 ? 'VALE PRESSIONA' : fight.momentum < -14 ? 'RIVAL PRESSIONA' : 'LUTA EQUILIBRADA'}</span>${critical}</div>${fightCombatant(opponent, 'opponent', fight.opponentHealth ?? 100, fight.opponentStamina ?? 100)}</div></section>`;
   }
   function fightResultMarkup(fight, fighter, opponent) {
     const winner = fight.result?.won ? fighter : opponent;
     const scorecards = fight.scorecards?.length ? `<div class="scorecard-grid">${fight.scorecards.map((card) => `<div><small>JUIZ ${card.judge}</small><strong class="${card.player > card.opponent ? 'winner-score' : ''}">${card.player}</strong><span>—</span><strong class="${card.opponent > card.player ? 'winner-score' : ''}">${card.opponent}</strong></div>`).join('')}</div>` : `<div class="finish-callout">${escapeHTML(fight.result?.method || 'interrupção')} · round ${fight.result?.round || fight.round}</div>`;
-    return `<section class="fight-verdict ${fight.result?.won ? 'won' : 'lost'}"><span class="eyebrow">DECISÃO OFICIAL</span><div class="verdict-winner">${fighterAvatar(winner, 'verdict-avatar')}<div><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(winner.name)}</h2><p>${escapeHTML(fight.result?.method || 'decisão dos juízes').toUpperCase()} · ROUND ${fight.result?.round || fight.round}</p></div></div>${scorecards}<p>${escapeHTML(fight.result?.summary || 'O resultado foi aplicado na carreira.')}</p><div class="verdict-actions"><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKINGS</button></div></section>`;
+    return `<section class="fight-verdict ${fight.result?.won ? 'won' : 'lost'}"><span class="eyebrow">DECISÃO OFICIAL</span><div class="verdict-winner">${fighterAvatar(winner, 'verdict-avatar')}<div><span>${fight.result?.won ? 'VITÓRIA' : 'DERROTA'}</span><h2>${escapeHTML(winner.name)}</h2><p>${escapeHTML(fight.result?.method || 'decisão dos juízes').toUpperCase()} · ROUND ${fight.result?.round || fight.round} · ${fight.result?.clock || '0:00'}</p></div></div>${scorecards}<p>${escapeHTML(fight.result?.summary || 'O resultado foi aplicado na carreira.')}</p><div class="verdict-actions"><button class="button" data-nav="home">VOLTAR À CENTRAL</button><button class="button secondary" data-nav="rankings">VER RANKINGS</button></div></section>`;
+  }
+  function fightTelemetryMarkup(fight) {
+    const position = fightPositionMeta(fight);
+    const pace = activeFightPace(fight);
+    const replay = Array.isArray(fight.replay) ? fight.replay : [];
+    const lead = fight.momentum > 14 ? 'VALE EM ALTA' : fight.momentum < -14 ? 'RIVAL EM ALTA' : 'COMBATE EQUILIBRADO';
+    return `<section class="fight-telemetry-grid"><article class="card fight-telemetry"><div class="card-title"><span>Leitura da transmissão</span><small>telemetria do round</small></div><div class="telemetry-row"><div><small>RELÓGIO</small><strong>${fight.status === 'active' ? fightClock(fight) : '—'}</strong></div><div><small>POSIÇÃO</small><strong>${position.label}</strong><span>${position.copy}</span></div><div><small>VANTAGEM</small><strong>${lead}</strong><span>${pace.label} · ${pace.exchanges} trocas/round</span></div></div></article><article class="card fight-replay"><div class="card-title"><span>Replay de momentos</span><small>${replay.length ? `${replay.length} destaque(s)` : 'aguardando ação'}</small></div><div class="replay-list">${replay.length ? replay.slice(0, 4).map((entry) => `<div class="replay-entry ${entry.player ? 'player' : ''}"><span>R${entry.round} · ${entry.clock}</span><strong>${escapeHTML(entry.title)}</strong><small>${escapeHTML(entry.copy)}</small></div>`).join('') : '<div class="replay-empty">Os impactos e mudanças de posição aparecerão aqui durante a Fight Night.</div>'}</div></article></section>`;
   }
   function fightViewPremium() {
     const fighter = selectedFighter();
@@ -1087,11 +1139,11 @@
     let command = '';
     if (idle) command = `<div class="fight-launch-card"><span class="eyebrow">JANELA DE COMBATE</span><h2>Uma nova<br><span class="text-gold">noite começa.</span></h2><p>Confirme o card para abrir a apresentação automatizada, com rounds, intervalos e resultado oficial.</p><button class="button fight-primary" data-action="book-fight">ACEITAR LUTA</button></div>`;
     else if (waiting) command = `<div class="fight-launch-card"><span class="eyebrow">CAMP EM CURSO</span><h2>O sino chama<br><span class="text-gold">na semana ${fight.readyWeek}.</span></h2><p>O atleta ainda está em preparação. A energia e a condição do camp serão levadas para a arena.</p><button class="button fight-primary" data-action="advance-week">AVANÇAR SEMANA</button></div>`;
-    else if (fight.status === 'ready') command = `<div class="fight-launch-card ready"><span class="eyebrow">PRONTO PARA A TRANSMISSÃO</span><h2>O próximo capítulo<br><span class="text-gold">é agora.</span></h2><p>Ao iniciar, a luta avança sozinha. Você escolhe o plano de abertura e volta a intervir somente nos intervalos.</p>${fightStrategyOptions(fight)}<button class="button fight-primary" data-action="start-fight">▶ INICIAR FIGHT NIGHT</button></div>`;
-    else if (fight.status === 'active') command = `<div class="fight-live-command"><span class="live-dot"></span><div><span class="eyebrow">COMBATE AO VIVO</span><h2>O round está em andamento.</h2><p>O sistema simula as trocas. A próxima decisão de corner será liberada no intervalo.</p></div><button class="button danger" data-action="throw-towel">JOGAR A TOALHA</button></div>`;
+    else if (fight.status === 'ready') command = `<div class="fight-launch-card ready"><span class="eyebrow">PRONTO PARA A TRANSMISSÃO</span><h2>O próximo capítulo<br><span class="text-gold">é agora.</span></h2><p>Defina o ritmo da transmissão e o plano de abertura. Ao iniciar, a luta avança sozinha; novas estratégias só entram nos intervalos.</p><div class="fight-setup-label">RITMO DA FIGHT NIGHT</div>${fightPaceOptions(fight)}${fightStrategyOptions(fight)}<button class="button fight-primary" data-action="start-fight">▶ INICIAR FIGHT NIGHT</button></div>`;
+    else if (fight.status === 'active') command = `<div class="fight-live-command ${fight.playerHealth <= 30 ? 'critical' : ''}"><span class="live-dot"></span><div><span class="eyebrow">COMBATE AO VIVO</span><h2>${fight.playerHealth <= 30 ? 'Atleta em nível crítico.' : 'O round está em andamento.'}</h2><p>${fight.playerHealth <= 30 ? 'O corner pode encerrar a luta para proteger o atleta.' : 'O sistema simula as trocas e o posicionamento. A próxima decisão de corner será liberada no intervalo.'}</p></div><button class="button danger" data-action="throw-towel">JOGAR A TOALHA</button></div>`;
     else if (fight.status === 'interval') command = `<div class="fight-interval-command"><span class="eyebrow">INTERVALO · ROUND ${Math.max(1, fight.round - 1)} ENCERRADO</span><h2>Fale com o<br><span class="text-gold">seu atleta.</span></h2><p>${escapeHTML(fight.intervalNote || 'Recalibre o plano antes do próximo round. A escolha altera a próxima sequência automática.')}</p>${fightStrategyOptions(fight)}<div class="interval-actions"><button class="button fight-primary" data-action="continue-fight">▶ INICIAR ROUND ${fight.round}</button><button class="button danger" data-action="throw-towel">JOGAR A TOALHA</button></div></div>`;
     else command = fightResultMarkup(fight, fighter, opponent);
-    return `<section class="content fight-page premium-fight-page"><div class="fight-premium-heading"><div><span class="eyebrow">${escapeHTML(showName)} · ${fighter.discipline} · ${fighter.division}</span><h1>Fight Night<br><span class="text-gold">em transmissão.</span></h1><p>${fightStatusLabel(fight)} O combate é automatizado em tempo real; suas decisões entram como estratégia de corner, não como golpes individuais.</p></div><button class="button secondary" data-nav="world">MAPA MUNDIAL</button></div>${premiumFightArena(fight, fighter, opponent)}<section class="premium-fight-bottom"><article class="card premium-command-card">${command}</article><aside class="card fight-log-card"><div class="card-title"><span>Feed oficial</span><small>${fight.log.length ? `${fight.log.length} momento(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.slice(0, 7).map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>Transmissão pronta</strong><p>Inicie a Fight Night para acompanhar a arena em tempo real.</p></div>`}</div></aside></section><p class="fight-disclaimer">Simulação fictícia de gestão. Estratégias influenciam leitura, energia e risco; nenhuma organização real é representada sem licenciamento.</p></section>`;
+    return `<section class="content fight-page premium-fight-page"><div class="fight-premium-heading"><div><span class="eyebrow">${escapeHTML(showName)} · ${fighter.discipline} · ${fighter.division}</span><h1>Fight Night<br><span class="text-gold">em transmissão.</span></h1><p>${fightStatusLabel(fight)} O combate é automatizado em tempo real; suas decisões entram como estratégia de corner, não como golpes individuais.</p></div><button class="button secondary" data-nav="world">MAPA MUNDIAL</button></div>${premiumFightArena(fight, fighter, opponent)}<section class="premium-fight-bottom"><article class="card premium-command-card">${command}</article><aside class="card fight-log-card"><div class="card-title"><span>Feed oficial</span><small>${fight.log.length ? `${fight.log.length} momento(s)` : 'aguardando o sino'}</small></div><div class="fight-log">${fight.log.length ? fight.log.slice(0, 7).map((entry) => `<div class="fight-log-entry ${entry.player ? 'player-log' : ''}"><strong>R${entry.round} · ${escapeHTML(entry.title)}</strong><p>${escapeHTML(entry.copy)}</p></div>`).join('') : `<div class="fight-log-entry"><strong>Transmissão pronta</strong><p>Inicie a Fight Night para acompanhar a arena em tempo real.</p></div>`}</div></aside></section>${fightTelemetryMarkup(fight)}<p class="fight-disclaimer">Simulação fictícia de gestão. Estratégias influenciam leitura, energia e risco; nenhuma organização real é representada sem licenciamento.</p></section>`;
   }
   function contractStepper(label, field, value, step, prefix = '', suffix = '') {
     return `<div class="contract-term"><div><strong>${label}</strong><small>${field === 'signing' ? 'pagamento único na assinatura' : field === 'salary' ? 'custo semanal recorrente' : field === 'duration' ? 'compromisso de longo prazo' : field === 'revenueShare' ? 'receita de bolsas e bônus' : 'porcentagem destinada ao atleta'}</small></div><div class="term-control"><button aria-label="Diminuir ${label}" data-action="adjust-offer" data-field="${field}" data-delta="-${step}">−</button><span>${prefix}${value}${suffix}</span><button aria-label="Aumentar ${label}" data-action="adjust-offer" data-field="${field}" data-delta="${step}">+</button></div></div>`;
@@ -1707,13 +1759,27 @@
     if (event?.id && event.id === state.fight.eventId) event.status = 'live';
     const competition = activeCompetition();
     if (competition?.id && competition.id === state.fight.competitionId) competition.status = 'live';
-    state.fight.exchangesPerRound = state.fight.exchangesPerRound || 5;
+    const pace = activeFightPace(state.fight);
+    state.fight.exchangesPerRound = pace.exchanges;
     state.fight.roundScores = Array.isArray(state.fight.roundScores) ? state.fight.roundScores : [];
     state.fight.cornerStrategy = state.fight.cornerStrategy || 'defensive';
+    state.fight.roundSeconds = 300;
+    state.fight.elapsedSeconds = 0;
+    state.fight.position = 'long-range';
+    state.fight.positionOwner = 'neutral';
+    state.fight.replay = Array.isArray(state.fight.replay) ? state.fight.replay : [];
     state.fight.status = 'active';
     state.fight.animationTick = (state.fight.animationTick || 0) + 1;
     state.fight.log.unshift({ round: 1, player: true, title: 'O sino toca', copy: selectedFighter().name + ' entra no centro do octógono. A transmissão começa agora.' });
     persist(); render(); beginFightAutomation(); toast('Round 1 iniciado. O combate avança em tempo real.');
+  }
+
+  function setFightPace(key) {
+    if (!fightPaces[key] || state.fight.status !== 'ready') return;
+    state.fight.pace = key;
+    state.fight.exchangesPerRound = fightPaces[key].exchanges;
+    state.fight.log.unshift({ round: 1, player: true, title: 'Ritmo de transmissão', copy: `A produção define o ritmo ${fightPaces[key].label.toLowerCase()} para a Fight Night.` });
+    persist(); render();
   }
 
   function setFightStrategy(key) {
@@ -1728,6 +1794,9 @@
     if (state.fight.status !== 'interval') return;
     state.fight.status = 'active';
     state.fight.intervalNote = null;
+    state.fight.roundSeconds = 300;
+    state.fight.position = 'long-range';
+    state.fight.positionOwner = 'neutral';
     state.fight.animationTick = (state.fight.animationTick || 0) + 1;
     state.fight.log.unshift({ round: state.fight.round, player: true, title: 'Round ' + state.fight.round, copy: 'O referee reinicia a luta. O corner liberou ' + (fightTactics[state.fight.cornerStrategy]?.label || 'a estratégia') + '.' });
     persist(); render(); beginFightAutomation();
@@ -1746,6 +1815,7 @@
     const fighter = selectedFighter();
     if (!fighter || fight.status !== 'active') { clearFightAutomation(); return; }
     const tactic = fightTactics[fight.cornerStrategy] || fightTactics.defensive;
+    const pace = activeFightPace(fight);
     const rivalKey = opponentTactic(fight);
     const rivalTactic = fightTactics[rivalKey];
     const disciplineBonus = fighter.discipline === 'MMA' ? 1.06 : 0.96;
@@ -1764,20 +1834,27 @@
       fight.momentum = clamp(fight.momentum - 8, -100, 100);
     }
     fight.exchanges += 1;
+    fight.roundSeconds = Math.max(0, (fight.roundSeconds ?? 300) - pace.seconds);
+    fight.elapsedSeconds = (fight.elapsedSeconds || 0) + pace.seconds;
     fight.animationTick = (fight.animationTick || 0) + 1;
     fight.lastAction = playerWins ? tactic.label : rivalTactic.label;
+    const position = resolveFightPosition(fight, playerWins, fight.cornerStrategy, rivalKey);
+    const impact = healthLoss >= 12 ? 'impacto alto' : healthLoss >= 8 ? 'impacto limpo' : 'troca de leitura';
+    fight.lastImpact = { label: impact, player: playerWins, position: position.label };
     fight.log.unshift({
       round: fight.round,
       player: playerWins,
       title: tactic.label + ' × ' + rivalTactic.label,
-      copy: playerWins ? fighter.name + ' encontra espaço e assume o centro do cage.' : fight.opponent.name + ' responde e muda o ritmo do duelo.'
+      copy: playerWins ? fighter.name + ' encontra espaço e muda a posição para ' + position.label.toLowerCase() + '.' : fight.opponent.name + ' responde e leva a luta para ' + position.label.toLowerCase() + '.'
     });
+    registerFightReplay(fight, { player: playerWins, title: playerWins ? `${tactic.label} conecta` : `${rivalTactic.label} do rival`, copy: `${impact} · ${position.label.toLowerCase()}` });
     if (fight.playerHealth <= 0 || fight.opponentHealth <= 0) {
       const playerWon = fight.opponentHealth <= 0;
       const finish = (fight.cornerStrategy === 'takedown' || fight.cornerStrategy === 'clinch') && nextFightRandom() > 0.62 ? 'finalização' : 'nocaute técnico';
       finishFight(playerWon, finish);
     } else if (fight.exchanges % fight.exchangesPerRound === 0) {
       const finishedRound = fight.round;
+      fight.roundSeconds = 0;
       fightRoundScore(fight);
       if (finishedRound >= fight.maxRounds) {
         fight.scorecards = buildScorecards(fight);
@@ -1839,7 +1916,10 @@
       settleCompetitionResult(competition, won, fighter, method);
       fight.result.summary += ` ${competition.name} foi registrado no passaporte competitivo.`;
     }
-    if (fight.result) fight.result.round = fight.round;
+    if (fight.result) {
+      fight.result.round = fight.round;
+      fight.result.clock = fightClock(fight);
+    }
   }
   function executeTactic(key) {
     const fight = state.fight;
@@ -1998,6 +2078,7 @@
       if (action === 'open-fight') { state.view = 'fight'; persist(); render(); }
       if (action === 'start-fight') startFight();
       if (action === 'fight-tactic') executeTactic(button.dataset.tactic);
+      if (action === 'set-fight-pace') setFightPace(button.dataset.pace);
       if (action === 'set-fight-strategy') setFightStrategy(button.dataset.tactic);
       if (action === 'continue-fight') continueFight();
       if (action === 'throw-towel') throwTowel();

@@ -23,9 +23,10 @@ O planejamento-base do MVP está organizado em **13 lotes**. Cada lote deve ampl
 
 15. Defesas de título e unificação de cinturões: desafiante de título, risco real de perda, defesas registradas, unificação entre circuitos compatíveis e legado persistente.
 
+16. Fight Night 2D aprofundada: ritmo configurável antes do sino, relógio de round, leitura tática de posicionamento, movimentação contextual dos tokens e replay persistente de momentos-chave.
+
 ## Próximas evoluções
 
-16. Fight Night 2D aprofundada: ritmo configurável, replay de momentos e leitura tática de posicionamento.
 17. Produção comercial de evento: card completo, venda por setores, mídia e impacto regional.
 
 Licenciamento de marcas, cloud save, áudio, IA de torcida e novos continentes continuam priorizados em [FUTURE_VISION.md](FUTURE_VISION.md).
